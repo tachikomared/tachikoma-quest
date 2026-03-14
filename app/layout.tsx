@@ -41,7 +41,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.className} bg-tachikoma-dark text-white antialiased`}>
-        <Providers>{children}</Providers>
+        <div id="app-root" className="min-h-screen">
+          <Providers>{children}</Providers>
+        </div>
       </body>
     </html>
   )
