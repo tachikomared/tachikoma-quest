@@ -1,11 +1,21 @@
 'use client'
 
+import { useEffect } from 'react'
 import { usePrivy } from '@privy-io/react-auth'
-import { Wallet, LogOut, ChevronDown } from 'lucide-react'
+import { Wallet, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+const WALLET_STORAGE_KEY = 'tachikoma.walletAddress'
 
 export function WalletButton() {
   const { login, logout, authenticated, user, ready } = usePrivy()
+
+  useEffect(() => {
+    const address = user?.wallet?.address
+    if (address) {
+      localStorage.setItem(WALLET_STORAGE_KEY, address)
+    }
+  }, [user])
 
   if (!ready) {
     return (
@@ -22,7 +32,7 @@ export function WalletButton() {
   if (authenticated && user) {
     const wallet = user.wallet
     const address = wallet?.address
-    const displayAddress = address 
+    const displayAddress = address
       ? `${address.slice(0, 6)}...${address.slice(-4)}`
       : user.farcaster?.username || 'Connected'
 

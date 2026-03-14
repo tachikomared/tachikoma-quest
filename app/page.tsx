@@ -7,12 +7,11 @@ import { ProgressBar } from '@/components/ProgressBar'
 import { ShareButton } from '@/components/ShareButton'
 import { WalletButton } from '@/components/WalletButton'
 import { QUESTS, QuestId } from '@/lib/utils'
-import { usePrivy } from '@privy-io/react-auth'
 
 const STORAGE_KEY = 'tachikoma.quest.completed'
+const WALLET_STORAGE_KEY = 'tachikoma.walletAddress'
 
 export default function HomePage() {
-  const { user, authenticated, login } = usePrivy()
   const [completed, setCompleted] = useState<QuestId[]>([])
   const [loading, setLoading] = useState<Record<string, boolean>>({})
 
@@ -55,23 +54,20 @@ export default function HomePage() {
 
     try {
       if (quest.action === 'wallet') {
-        if (!authenticated) {
-          await login()
+        const address = localStorage.getItem(WALLET_STORAGE_KEY)
+        if (!address) {
+          alert('Connect your wallet first (top right).')
+          return
         }
 
-        const address = user?.wallet?.address
-        if (address) {
-          await fetch('/api/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              walletAddress: address,
-              farcasterFid: user?.farcaster?.fid,
-              farcasterUsername: user?.farcaster?.username,
-            }),
-          })
-          handleComplete(id)
-        }
+        await fetch('/api/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress: address,
+          }),
+        })
+        handleComplete(id)
         return
       }
 
@@ -80,10 +76,11 @@ export default function HomePage() {
         window.open(quest.url, '_blank')
       }
 
-      // Farcaster verification if we have an FID
-      if (quest.platform === 'farcaster' && user?.farcaster?.fid) {
+      // Farcaster verification if we have an FID stored
+      const fid = localStorage.getItem('tachikoma.fid')
+      if (quest.platform === 'farcaster' && fid) {
         const params = new URLSearchParams({
-          fid: String(user.farcaster.fid),
+          fid: String(fid),
           type: quest.action,
         })
         const res = await fetch(`/api/verify?${params.toString()}`)
