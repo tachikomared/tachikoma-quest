@@ -7,11 +7,21 @@
   "frame": {
     "version": "1",
     "name": "TACHI Quest",
-    "homeUrl": "https://tachi-quest.vercel.app",
     "iconUrl": "https://tachi-quest.vercel.app/icon.png",
+    "homeUrl": "https://tachi-quest.vercel.app",
     "imageUrl": "https://tachi-quest.vercel.app/og-image.png",
     "buttonTitle": "Start Quest",
     "splashImageUrl": "https://tachi-quest.vercel.app/splash.png",
-    "splashBackgroundColor": "#0a0a0f"
+    "splashBackgroundColor": "#0a0a0f",
+    "subtitle": "Complete verified Farcaster quests",
+    "description": "Complete verified Farcaster quests, link your wallet, and earn points for the $TACHI airdrop.",
+    "primaryCategory": "social",
+    "tags": ["farcaster", "quests", "airdrop", "tachi"],
+    "heroImageUrl": "https://tachi-quest.vercel.app/og-image.png",
+    "tagline": "Verified quests for the $TACHI airdrop",
+    "ogTitle": "TACHI Quest",
+    "ogDescription": "Complete verified Farcaster quests and link your wallet for the $TACHI airdrop.",
+    "ogImageUrl": "https://tachi-quest.vercel.app/og-image.png",
+    "castShareUrl": "https://tachi-quest.vercel.app"
   }
 }
