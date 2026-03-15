@@ -14,7 +14,7 @@ export function Providers({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const inMiniApp = await sdk.isInMiniApp();
+        const inMiniApp = await detectMiniApp();
         console.log('[providers] isInMiniApp', inMiniApp);
         setIsMiniApp(inMiniApp);
       } catch (e) {
