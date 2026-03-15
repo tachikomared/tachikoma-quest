@@ -16,7 +16,7 @@
     "subtitle": "Verified quest checklist",
     "description": "Complete verified quests, link wallet, and earn points for the TACHI airdrop.",
     "primaryCategory": "social",
-    "tags": ["farcaster", "quests", "airdrop", "tachi", "meme", "ai agent", "token burn"],
+    "tags": ["farcaster", "quests", "airdrop", "meme", "tokenburn"],
     "heroImageUrl": "https://tachi-quest.vercel.app/og-image.png",
     "tagline": "Verified quests and rewards",
     "ogTitle": "TACHI Quest",
