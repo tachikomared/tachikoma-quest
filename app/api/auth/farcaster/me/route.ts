@@ -108,18 +108,30 @@ async function setSession(fid: number, username: string | null, userId: string) 
 
 async function handleQuickAuth(token: string, req: Request) {
   const domain = getRequestHost(req);
-  const payload = await quickAuth.verifyJwt({
-    token,
-    domain,
-  });
+  console.log('[auth] Verifying JWT for domain:', domain);
+
+  let payload;
+  try {
+    payload = await quickAuth.verifyJwt({
+      token,
+      domain,
+    });
+  } catch (e: any) {
+    console.error('[auth] JWT verification failed:', e?.message || e);
+    throw new Error('jwt_verification_failed: ' + (e?.message || 'unknown'));
+  }
+
+  console.log('[auth] JWT payload keys:', Object.keys(payload || {}));
 
   // Quick Auth JWT contains fid and username in the payload
   const quickAuthPayload = payload as { fid?: number; username?: string };
   const fid = quickAuthPayload?.fid ? Number(quickAuthPayload.fid) : null;
   const username = quickAuthPayload?.username ?? null;
 
+  console.log('[auth] Extracted fid:', fid, 'username:', username);
+
   if (!fid) {
-    return NextResponse.json({ user: null }, { status: 401 });
+    throw new Error('missing_fid_in_token');
   }
 
   const userId = await ensureUser(fid, username);
@@ -127,39 +139,64 @@ async function handleQuickAuth(token: string, req: Request) {
   await setSession(fid, username, userId);
 
   const user = await getUserWithPoints(fid);
+  console.log('[auth] User authenticated:', user?.fc_fid);
   return NextResponse.json({ user });
 }
 
 export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization');
+  console.log('[auth] GET headers:', { authorization: authHeader ? 'present' : 'missing', host: getRequestHost(req) });
+
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.replace('Bearer ', '').trim();
-    return handleQuickAuth(token, req);
+    console.log('[auth] Bearer token present, length:', token.length);
+    try {
+      return await handleQuickAuth(token, req);
+    } catch (e: any) {
+      console.error('[auth] Quick auth failed:', e?.message || e);
+      return NextResponse.json({ user: null, error: e?.message || 'auth_failed' }, { status: 401 });
+    }
   }
 
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get('session');
 
   if (!sessionToken?.value) {
+    console.log('[auth] No session cookie');
     return NextResponse.json({ user: null });
   }
 
   const session = await verifySession(sessionToken.value);
   if (!session) {
+    console.log('[auth] Session verification failed');
     return NextResponse.json({ user: null });
   }
 
+  console.log('[auth] Session valid for fid:', session.fid);
   const user = await getUserWithPoints(session.fid);
   return NextResponse.json({ user });
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
+  let body;
+  try {
+    body = await req.json();
+  } catch (e) {
+    console.error('[auth] POST body parse failed');
+    return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
+  }
+
   const { token } = body;
+  console.log('[auth] POST token present:', !!token, 'host:', getRequestHost(req));
 
   if (!token) {
     return NextResponse.json({ error: 'Missing token' }, { status: 400 });
   }
 
-  return handleQuickAuth(token, req);
+  try {
+    return await handleQuickAuth(token, req);
+  } catch (e: any) {
+    console.error('[auth] POST auth failed:', e?.message || e);
+    return NextResponse.json({ error: e?.message || 'auth_failed' }, { status: 401 });
+  }
 }
