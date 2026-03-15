@@ -1,50 +1,38 @@
-import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
-import dynamic from 'next/dynamic'
-import './globals.css'
+import type { Metadata } from 'next';
+import './globals.css';
 
-const Providers = dynamic(() => import('@/components/Providers').then((mod) => mod.Providers), {
-  ssr: false,
-})
-
-const inter = Inter({ subsets: ['latin'] })
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 export const metadata: Metadata = {
-  title: 'TACHI Quest | Earn $TACHI Rewards',
-  description: 'Complete quests, repost, follow, and earn $TACHI token rewards on Base',
-  openGraph: {
-    title: 'TACHI Quest | Viral Rewards',
-    description: 'Complete quests and earn $TACHI on Base',
-    images: ['/og-image.png'],
-  },
+  metadataBase: new URL(APP_URL),
+  title: 'TACHI Quest',
+  description: 'Complete verified Farcaster quests and link wallet for $TACHI airdrop eligibility',
   other: {
-    'fc:frame': 'vNext',
-    'fc:frame:image': 'https://your-app.vercel.app/frame-image.png',
-    'fc:frame:button:1': 'Start Quest',
-    'fc:frame:button:1:action': 'link',
-    'fc:frame:button:1:target': 'https://your-app.vercel.app',
+    'fc:frame': JSON.stringify({
+      version: 'next',
+      imageUrl: `${APP_URL}/og-image.png`,
+      button: {
+        title: 'Start',
+        action: {
+          type: 'launch_miniapp',
+          name: 'TACHI Quest',
+          url: APP_URL,
+          splashImageUrl: `${APP_URL}/splash.png`,
+          splashBackgroundColor: '#0a0a0f'
+        }
+      }
+    }),
   },
-}
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  themeColor: '#0a0a0f',
-}
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} bg-tachikoma-dark text-white antialiased`}>
-        <div id="app-root" className="min-h-screen">
-          <Providers>{children}</Providers>
-        </div>
-      </body>
+    <html lang="en">
+      <body>{children}</body>
     </html>
-  )
+  );
 }
