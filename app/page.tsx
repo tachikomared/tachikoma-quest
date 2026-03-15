@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { detectMiniApp } from '@/lib/miniapp';
 import { useConnect, useAccount, useSignMessage } from 'wagmi';
 
 type QuestStatus = 'idle' | 'opened' | 'verifying' | 'verified' | 'failed';
