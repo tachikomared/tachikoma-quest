@@ -65,7 +65,7 @@ export default function HomePage() {
 
     (async () => {
       try {
-        const inMiniApp = await sdk.isInMiniApp();
+        const inMiniApp = await detectMiniApp();
         console.log('[miniapp] isInMiniApp', inMiniApp);
         setIsMiniApp(inMiniApp);
 

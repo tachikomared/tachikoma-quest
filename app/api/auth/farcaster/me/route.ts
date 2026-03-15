@@ -11,6 +11,12 @@ const JWT_SECRET = new TextEncoder().encode(
 );
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
+function getRequestHost(req: Request) {
+  const forwardedHost = req.headers.get('x-forwarded-host');
+  const host = forwardedHost || req.headers.get('host');
+  return host || new URL(APP_URL).host;
+}
+
 async function signSession(payload: { fid: number; username: string | null; userId: string }) {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
@@ -100,10 +106,11 @@ async function setSession(fid: number, username: string | null, userId: string) 
   });
 }
 
-async function handleQuickAuth(token: string) {
+async function handleQuickAuth(token: string, req: Request) {
+  const domain = getRequestHost(req);
   const payload = await quickAuth.verifyJwt({
     token,
-    domain: new URL(APP_URL).host,
+    domain,
   });
 
   // Quick Auth JWT contains fid and username in the payload
@@ -127,7 +134,7 @@ export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization');
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.replace('Bearer ', '').trim();
-    return handleQuickAuth(token);
+    return handleQuickAuth(token, req);
   }
 
   const cookieStore = await cookies();
@@ -154,5 +161,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing token' }, { status: 400 });
   }
 
-  return handleQuickAuth(token);
+  return handleQuickAuth(token, req);
 }

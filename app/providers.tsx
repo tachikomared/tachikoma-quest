@@ -4,7 +4,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { getWagmiConfig } from '@/lib/wagmi';
-import { sdk } from '@farcaster/miniapp-sdk';
+import { detectMiniApp } from '@/lib/miniapp';
 
 const queryClient = new QueryClient();
 
