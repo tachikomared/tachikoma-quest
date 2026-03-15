@@ -1,0 +1,17 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjMyOTEsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHhFMzc5RjI5MmY3NWM3RjREQjA2N2Y2RTUwNDc5MUQwNWQ0MjE4Yzk3In0",
+    "payload": "eyJkb21haW4iOiJ0YWNoaS1xdWVzdC52ZXJjZWwuYXBwIn0",
+    "signature": "MEYCIQD6nyvL2ll2m5tZ3m0O9g7m7z8W5y8X7y8Y7y8Z7y8a7y8aAIhAO7y8b7y8c7y8d7y8e7y8f7y8g7y8h7y8i7y8j7y8k7y8l"
+  },
+  "frame": {
+    "version": "next",
+    "name": "TACHI Quest",
+    "homeUrl": "https://tachi-quest.vercel.app",
+    "iconUrl": "https://tachi-quest.vercel.app/icon.png",
+    "imageUrl": "https://tachi-quest.vercel.app/og-image.png",
+    "buttonTitle": "Start Quest",
+    "splashImageUrl": "https://tachi-quest.vercel.app/splash.png",
+    "splashBackgroundColor": "#0a0a0f"
+  }
+}

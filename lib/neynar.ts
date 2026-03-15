@@ -1,68 +1,55 @@
-const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY
-const NEYNAR_API_URL = 'https://api.neynar.com/v2'
+const API = 'https://api.neynar.com/v2';
 
-export async function verifyFarcasterFollow(userFid: number, targetFid: number) {
-  try {
-    const response = await fetch(
-      `${NEYNAR_API_URL}/farcaster/following?fid=${userFid}&viewer_fid=${targetFid}`,
-      {
-        headers: {
-          'accept': 'application/json',
-          'api_key': NEYNAR_API_KEY || '',
-        },
-      }
-    )
-    
-    if (!response.ok) throw new Error('Failed to verify follow')
-    
-    const data = await response.json()
-    return data.users?.some((u: any) => u.fid === targetFid) || false
-  } catch (error) {
-    console.error('Error verifying follow:', error)
-    return false
-  }
+function getHeaders() {
+  const apiKey = process.env.NEYNAR_API_KEY;
+  if (!apiKey) throw new Error('NEYNAR_API_KEY is missing');
+
+  return {
+    accept: 'application/json',
+    'x-api-key': apiKey,
+  };
 }
 
-export async function verifyFarcasterRecast(userFid: number, castHash: string) {
-  try {
-    const response = await fetch(
-      `${NEYNAR_API_URL}/farcaster/reactions/cast?cast_hash=${castHash}&reactions_type=recasts`,
-      {
-        headers: {
-          'accept': 'application/json',
-          'api_key': NEYNAR_API_KEY || '',
-        },
-      }
-    )
-    
-    if (!response.ok) throw new Error('Failed to verify recast')
-    
-    const data = await response.json()
-    return data.reactions?.some((r: any) => r.user.fid === userFid) || false
-  } catch (error) {
-    console.error('Error verifying recast:', error)
-    return false
+export async function fetchUserWithViewer(targetFid: number, viewerFid: number) {
+  const qs = new URLSearchParams({
+    fids: String(targetFid),
+    viewer_fid: String(viewerFid),
+  });
+
+  const res = await fetch(`${API}/farcaster/user/bulk/?${qs.toString()}`, {
+    headers: getHeaders(),
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    throw new Error(`Neynar user lookup failed: ${res.status}`);
   }
+
+  const data = await res.json();
+  return data.users?.[0] ?? null;
 }
 
-export async function getUserByFid(fid: number) {
-  try {
-    const response = await fetch(
-      `${NEYNAR_API_URL}/farcaster/user/bulk?fids=${fid}`,
-      {
-        headers: {
-          'accept': 'application/json',
-          'api_key': NEYNAR_API_KEY || '',
-        },
-      }
-    )
-    
-    if (!response.ok) throw new Error('Failed to fetch user')
-    
-    const data = await response.json()
-    return data.users?.[0]
-  } catch (error) {
-    console.error('Error fetching user:', error)
-    return null
+export async function verifyFarcasterFollow(viewerFid: number, targetFid: number) {
+  const user = await fetchUserWithViewer(targetFid, viewerFid);
+  return Boolean(user?.viewer_context?.following);
+}
+
+export async function fetchCastWithViewer(identifier: string, type: 'url' | 'hash', viewerFid: number) {
+  const qs = new URLSearchParams({
+    identifier,
+    type,
+    viewer_fid: String(viewerFid),
+  });
+
+  const res = await fetch(`${API}/farcaster/cast/?${qs.toString()}`, {
+    headers: getHeaders(),
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    throw new Error(`Neynar cast lookup failed: ${res.status}`);
   }
+
+  const data = await res.json();
+  return data.cast ?? null;
 }

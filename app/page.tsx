@@ -1,172 +1,227 @@
-'use client'
+'use client';
 
-import { useEffect, useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
-import { sdk } from '@farcaster/miniapp-sdk'
-import { QuestCard } from '@/components/QuestCard'
-import { ProgressBar } from '@/components/ProgressBar'
-import { ShareButton } from '@/components/ShareButton'
-import { WalletButton } from '@/components/WalletButton'
-import { QUESTS, QuestId } from '@/lib/utils'
+import { useEffect, useState } from 'react';
+import { sdk } from '@farcaster/miniapp-sdk';
 
-const STORAGE_KEY = 'tachikoma.quest.completed'
-const WALLET_STORAGE_KEY = 'tachikoma.walletAddress'
+type Quest = {
+  id: string;
+  title: string;
+  description: string;
+  platform: string;
+  action: string;
+  verification: string;
+  points: number;
+  target: Record<string, any>;
+};
+
+type User = {
+  fid: number;
+  username: string;
+  points: number;
+  referral_code: string;
+};
 
 export default function HomePage() {
-  const [completed, setCompleted] = useState<QuestId[]>([])
-  const [loading, setLoading] = useState<Record<string, boolean>>({})
+  const [quests, setQuests] = useState<Quest[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const [refCode, setRefCode] = useState('');
+  const [isFarcaster, setIsFarcaster] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      try {
-        setCompleted(JSON.parse(stored))
-      } catch {
-        // ignore
-      }
+    // Check if in Farcaster environment
+    sdk.context.then((ctx) => {
+      setIsFarcaster(Boolean(ctx?.user));
+    }).catch(() => {});
+    
+    // Fetch quests
+    fetch('/api/quests')
+      .then((r) => r.json())
+      .then((d) => setQuests(d.quests ?? []));
+    
+    // Fetch current user
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.user) {
+          setUser(d.user);
+        }
+      });
+    
+    // Check for ref code in URL
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      setRefCode(ref);
     }
-  }, [])
+    
+    // Signal ready to Farcaster
+    sdk.actions.ready().catch(() => {});
+  }, []);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(completed))
-  }, [completed])
-
-  // Signal Farcaster Mini App that we are ready
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    sdk.actions.ready()
-  }, [])
-
-  const progress = useMemo(() => {
-    const points = completed.reduce((acc, id) => {
-      const quest = QUESTS.find((q) => q.id === id)
-      return acc + (quest?.points || 0)
-    }, 0)
-    return { current: completed.length, total: QUESTS.length, points }
-  }, [completed])
-
-  const handleComplete = (id: QuestId) => {
-    if (!completed.includes(id)) {
-      setCompleted((prev) => [...prev, id])
+  async function handleAuth() {
+    try {
+      // Get context first for user info
+      const ctx = await sdk.context;
+      
+      // Use Neynar auth - get signature from user
+      const result = await sdk.actions.signIn({
+        nonce: Math.random().toString(36).slice(2),
+      });
+      
+      if (!result) {
+        throw new Error('Auth failed');
+      }
+      
+      // Send to server to create session
+      const res = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          signature: result.signature,
+          message: result.message,
+          user: ctx?.user,
+        }),
+      });
+      
+      if (res.ok) {
+        window.location.reload();
+      }
+    } catch (e) {
+      console.error('Auth failed:', e);
     }
   }
 
-  const handleQuestAction = async (id: QuestId) => {
-    const quest = QUESTS.find((q) => q.id === id)
-    if (!quest) return
-
-    setLoading((prev) => ({ ...prev, [id]: true }))
-
+  async function verifyQuest(quest: Quest) {
+    setLoading((s) => ({ ...s, [quest.id]: true }));
     try {
-      if (quest.action === 'wallet') {
-        const address = localStorage.getItem(WALLET_STORAGE_KEY)
-        if (!address) {
-          alert('Connect your wallet first (top right).')
-          return
-        }
-
-        await fetch('/api/submit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            walletAddress: address,
-          }),
-        })
-        handleComplete(id)
-        return
+      // For external quests (X), just open the URL
+      if (quest.platform === 'x' && quest.target.url) {
+        window.open(quest.target.url, '_blank');
+        return;
       }
-
-      // Open quest URL
-      if (quest.url) {
-        window.open(quest.url, '_blank')
-      }
-
-      // Farcaster verification if we have an FID stored
-      const fid = localStorage.getItem('tachikoma.fid')
-      if (quest.platform === 'farcaster' && fid) {
-        const params = new URLSearchParams({
-          fid: String(fid),
-          type: quest.action,
-        })
-        const res = await fetch(`/api/verify?${params.toString()}`)
-        const data = await res.json()
-        if (data?.verified) {
-          handleComplete(id)
-          return
+      
+      // For Farcaster quests, open the target first
+      if (quest.platform === 'farcaster') {
+        if (quest.target.castUrl) {
+          window.open(quest.target.castUrl, '_blank');
+        } else if (quest.target.targetFid) {
+          window.open(`https://warpcast.com/~/profiles/${quest.target.targetFid}`, '_blank');
         }
       }
-
-      // Fallback: self-report completion for X or unverifiable actions
-      handleComplete(id)
-    } catch (err) {
-      console.error('Quest action failed:', err)
+      
+      // Then verify
+      const res = await fetch(`/api/quests/${quest.id}/verify`, { 
+        method: 'POST' 
+      });
+      const data = await res.json();
+      
+      if (data.verified) {
+        // Refresh user data
+        const meRes = await fetch('/api/me');
+        const meData = await meRes.json();
+        if (meData.user) {
+          setUser(meData.user);
+        }
+      }
+    } catch (e) {
+      console.error('Verification failed:', e);
     } finally {
-      setLoading((prev) => ({ ...prev, [id]: false }))
+      setLoading((s) => ({ ...s, [quest.id]: false }));
     }
+  }
+
+  async function attachReferral() {
+    if (!refCode) return;
+    
+    const res = await fetch('/api/referrals/attach', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: refCode }),
+    });
+    
+    if (res.ok) {
+      setRefCode('');
+      // Remove ref from URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('ref');
+      window.history.replaceState({}, '', url);
+    }
+  }
+
+  if (!user) {
+    return (
+      <main className="min-h-screen bg-black text-white flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          <h1 className="text-4xl font-bold mb-4">TACHI Quest</h1>
+          <p className="text-white/70 mb-8">
+            Complete quests and link your wallet for $TACHI airdrop eligibility
+          </p>
+          <button
+            onClick={handleAuth}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-8 rounded-xl transition"
+          >
+            {isFarcaster ? 'Connect with Farcaster' : 'Sign In'}
+          </button>
+        </div>
+      </main>
+    );
   }
 
   return (
-    <main className="min-h-screen px-5 pb-20 pt-10">
-      <div className="mx-auto max-w-4xl">
-        {/* Header */}
-        <div className="mb-10 flex flex-col gap-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-tachikoma-cyan to-tachikoma-purple p-0.5">
-                <div className="flex h-full w-full items-center justify-center rounded-2xl bg-tachikoma-dark text-lg font-bold">
-                  🕷️
-                </div>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">TACHIKOMA QUEST</h1>
-                <p className="text-sm text-gray-400">Complete viral quests, earn $TACHI on Base</p>
-              </div>
-            </div>
-            <WalletButton />
-          </div>
-
-          <div className="glass rounded-3xl p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="max-w-xl">
-                <h2 className="mb-2 text-xl font-semibold gradient-text">The Viral Airdrop Campaign</h2>
-                <p className="text-sm text-gray-400">
-                  Join the Tachikoma swarm. Recast, repost, and spread the signal — every quest earns points toward the $TACHI airdrop.
-                </p>
-              </div>
-              <ShareButton />
-            </div>
+    <main className="min-h-screen bg-black text-white p-6">
+      <div className="max-w-md mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">TACHI Quest</h1>
+          <div className="text-right">
+            <div className="text-sm text-white/60">@{user.username}</div>
+            <div className="text-cyan-400 font-semibold">{user.points ?? 0} points</div>
           </div>
         </div>
-
-        {/* Progress */}
-        <div className="glass mb-8 rounded-3xl p-6">
-          <ProgressBar current={progress.current} total={progress.total} points={progress.points} />
+        
+        {refCode && (
+          <div className="mb-6 p-4 bg-purple-900/30 border border-purple-500/30 rounded-xl">
+            <p className="text-sm mb-2">You were referred by: <span className="font-mono">{refCode}</span></p>
+            <button
+              onClick={attachReferral}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium py-2 rounded-lg transition"
+            >
+              Attach Referral Code
+            </button>
+          </div>
+        )}
+        
+        <div className="mb-6 p-4 bg-white/5 rounded-xl">
+          <div className="text-sm text-white/60 mb-1">Your Referral Code</div>
+          <div className="font-mono text-lg">{user.referral_code}</div>
         </div>
-
-        {/* Quest list */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {QUESTS.map((quest) => (
-            <QuestCard
+        
+        <div className="grid gap-3">
+          {quests.map((quest) => (
+            <button
               key={quest.id}
-              quest={quest}
-              isCompleted={completed.includes(quest.id)}
-              isLoading={!!loading[quest.id]}
-              onAction={() => handleQuestAction(quest.id)}
-            />
+              className="text-left p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition disabled:opacity-50"
+              disabled={loading[quest.id]}
+              onClick={() => verifyQuest(quest)}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="font-semibold">{quest.title}</div>
+                  <div className="text-sm text-white/60 mt-1">{quest.description}</div>
+                </div>
+                {quest.points > 0 && (
+                  <div className="text-cyan-400 font-semibold whitespace-nowrap ml-4">
+                    +{quest.points}
+                  </div>
+                )}
+              </div>
+              <div className="mt-2 text-xs text-white/40 uppercase tracking-wider">
+                {quest.platform}
+              </div>
+            </button>
           ))}
         </div>
-
-        {/* Footer */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mt-12 text-center text-xs text-gray-500"
-        >
-          Powered by Neynar + Privy • Built for the $TACHI swarm on Base
-        </motion.div>
       </div>
     </main>
-  )
+  );
 }
