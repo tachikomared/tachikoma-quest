@@ -52,6 +52,7 @@ export default function HomePage() {
   const { connect, connectors } = useConnect();
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
+  const [walletState, setWalletState] = useState<'not_connected' | 'connecting' | 'connected' | 'linking' | 'linked' | 'failed'>('not_connected');
 
   useEffect(() => {
     fetch('/api/quests')
@@ -65,17 +66,22 @@ export default function HomePage() {
     (async () => {
       try {
         const inMiniApp = await sdk.isInMiniApp();
+        console.log('[miniapp] isInMiniApp', inMiniApp);
         setIsMiniApp(inMiniApp);
 
         if (inMiniApp) {
           const res = await sdk.quickAuth.fetch('/api/auth/farcaster/me');
+          console.log('[miniapp] quickAuth status', res.status);
           if (res.ok) {
             const data = await res.json();
             setUser(data.user ?? null);
+          } else {
+            console.error('[miniapp] auth failed', res.status);
           }
           await sdk.actions.ready();
         } else {
           const res = await fetch('/api/me', { credentials: 'include' });
+          console.log('[web] /api/me status', res.status);
           if (res.ok) {
             const data = await res.json();
             setUser(data.user ?? null);
@@ -88,6 +94,11 @@ export default function HomePage() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!connectors?.length) return;
+    console.log('[wallet] connectors', connectors.map((c) => c.id));
+  }, [connectors]);
 
   const shareLink = useMemo(() => {
     if (!user?.referral_code) return '';
@@ -105,10 +116,13 @@ export default function HomePage() {
   async function handleMiniAppAuth() {
     try {
       const res = await sdk.quickAuth.fetch('/api/auth/farcaster/me');
+      console.log('[miniapp] quickAuth status', res.status);
       if (res.ok) {
         const data = await res.json();
         setUser(data.user ?? null);
         await sdk.actions.ready();
+      } else {
+        console.error('[miniapp] auth failed', res.status);
       }
     } catch (e) {
       console.error('Mini app auth failed:', e);
@@ -175,6 +189,7 @@ export default function HomePage() {
   async function connectWallet(quest: Quest) {
     if (!user || !address) return;
     try {
+      setWalletState('linking');
       const message = `Link wallet to TACHI Quest: ${user.fc_fid}`;
       const signature = await signMessageAsync({ message });
       const res = await fetch('/api/wallet/link', {
@@ -185,9 +200,15 @@ export default function HomePage() {
       if (res.ok) {
         setStatus(quest.id, 'verified');
         await refreshUser();
+        setWalletState('linked');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        console.error('[wallet] link failed', data);
+        setWalletState('failed');
       }
     } catch (e) {
       console.error('Wallet connect failed:', e);
+      setWalletState('failed');
     }
   }
 
@@ -408,11 +429,19 @@ export default function HomePage() {
                       )}
                       {isWallet && (
                         <button
-                          onClick={() => connect({ connector: connectors[0] })}
+                          onClick={() => {
+                            const connector = isMiniApp ? connectors[0] : connectors.find((c) => c.id !== 'farcaster');
+                            if (!connector) {
+                              console.error('[wallet] missing connector');
+                              return;
+                            }
+                            setWalletState('connecting');
+                            connect({ connector });
+                          }}
                           disabled={status === 'verified' || isConnected}
                           className="rounded-xl px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
                         >
-                          {isConnected ? 'Connected' : 'Connect Wallet'}
+                          {walletState === 'connecting' ? 'Connecting...' : isConnected ? 'Connected' : 'Connect Wallet'}
                         </button>
                       )}
                       {isWallet && isConnected && status !== 'verified' && (
@@ -420,7 +449,7 @@ export default function HomePage() {
                           onClick={() => connectWallet(quest)}
                           className="rounded-xl px-4 py-2 bg-green-600 hover:bg-green-700"
                         >
-                          Link Wallet
+                          {walletState === 'linking' ? 'Linking...' : walletState === 'linked' ? 'Linked' : 'Link Wallet'}
                         </button>
                       )}
                     </div>
