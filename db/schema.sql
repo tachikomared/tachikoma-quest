@@ -5,6 +5,8 @@ create table if not exists users (
   fc_fid bigint unique,
   fc_username text,
   fc_display_name text,
+  fc_pfp_url text,
+  fc_bio text,
   fc_score numeric(6,3),
   referral_code text not null unique,
   referred_by_code text,

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { useConnect, useAccount, useSignMessage } from 'wagmi';
-import { base } from 'viem/chains';
 
 type QuestStatus = 'idle' | 'opened' | 'verifying' | 'verified' | 'failed';
 
@@ -22,6 +21,10 @@ type User = {
   id: string;
   fc_fid: number;
   fc_username: string | null;
+  fc_display_name: string | null;
+  fc_pfp_url: string | null;
+  fc_bio: string | null;
+  fc_score: number | null;
   referral_code: string;
   points: number;
 };
@@ -71,7 +74,7 @@ export default function HomePage() {
           }
           await sdk.actions.ready();
         } else {
-          const res = await fetch('/api/auth/farcaster/me', { credentials: 'include' });
+          const res = await fetch('/api/me', { credentials: 'include' });
           if (res.ok) {
             const data = await res.json();
             setUser(data.user ?? null);
@@ -91,7 +94,7 @@ export default function HomePage() {
   }, [user?.referral_code]);
 
   async function refreshUser() {
-    const res = await fetch('/api/auth/farcaster/me', { credentials: 'include' });
+    const res = await fetch('/api/me', { credentials: 'include' });
     if (res.ok) {
       const data = await res.json();
       setUser(data.user ?? null);
@@ -104,6 +107,7 @@ export default function HomePage() {
       if (res.ok) {
         const data = await res.json();
         setUser(data.user ?? null);
+        await sdk.actions.ready();
       }
     } catch (e) {
       console.error('Mini app auth failed:', e);
@@ -148,7 +152,7 @@ export default function HomePage() {
 
   async function verifyQuest(quest: Quest) {
     if (!user) return;
-    if (quest.platform === 'x' || quest.verification === 'wallet_link') {
+    if (quest.platform === 'x' || quest.verification === 'wallet_signature') {
       setStatus(quest.id, 'failed');
       return;
     }
@@ -248,6 +252,24 @@ export default function HomePage() {
           </div>
         </header>
 
+        {user && (
+          <div className="mb-6 p-4 bg-white/5 rounded-2xl border border-white/10 flex gap-4">
+            {user.fc_pfp_url && (
+              <img
+                src={user.fc_pfp_url}
+                alt={user.fc_display_name ?? user.fc_username ?? 'Profile'}
+                className="w-16 h-16 rounded-full"
+              />
+            )}
+            <div>
+              <div className="text-lg font-semibold">{user.fc_display_name ?? user.fc_username ?? 'Anon'}</div>
+              <div className="text-sm text-white/60">@{user.fc_username ?? 'anon'} · FID {user.fc_fid}</div>
+              {user.fc_bio && <div className="text-xs text-white/50 mt-1">{user.fc_bio}</div>}
+              {user.fc_score && <div className="text-xs text-white/40 mt-1">Score: {user.fc_score}</div>}
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-6 md:grid-cols-[260px_1fr]">
           <aside className="space-y-4">
             <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
@@ -288,7 +310,7 @@ export default function HomePage() {
             <div className="grid gap-4">
               {quests.map((quest) => {
                 const status = statuses[quest.id] ?? 'idle';
-                const isWallet = quest.verification === 'wallet_link';
+                const isWallet = quest.verification === 'wallet_signature';
                 const isX = quest.platform === 'x';
                 const isFarcaster = quest.platform === 'farcaster';
 

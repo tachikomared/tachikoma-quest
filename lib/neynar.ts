@@ -29,6 +29,24 @@ export async function fetchUserWithViewer(targetFid: number, viewerFid: number) 
   return data.users?.[0] ?? null;
 }
 
+export async function fetchUserByFid(fid: number) {
+  const qs = new URLSearchParams({
+    fids: String(fid),
+  });
+
+  const res = await fetch(`${API}/farcaster/user/bulk/?${qs.toString()}`, {
+    headers: getHeaders(),
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    throw new Error(`Neynar user lookup failed: ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.users?.[0] ?? null;
+}
+
 export async function verifyFarcasterFollow(viewerFid: number, targetFid: number) {
   const user = await fetchUserWithViewer(targetFid, viewerFid);
   return Boolean(user?.viewer_context?.following);

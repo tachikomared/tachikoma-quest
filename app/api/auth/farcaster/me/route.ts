@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { createClient } from '@farcaster/quick-auth';
 import { SignJWT, jwtVerify } from 'jose';
 import { sql } from '@/lib/db';
+import { fetchUserByFid } from '@/lib/neynar';
 
-const NEYNAR_API_URL = 'https://api.neynar.com/v2';
+const quickAuth = createClient();
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || process.env.SESSION_SECRET || 'dev-secret-min-32-chars-long!!'
 );
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 async function signSession(payload: { fid: number; username: string | null; userId: string }) {
   return new SignJWT(payload)
@@ -25,47 +28,22 @@ async function verifySession(token: string) {
   }
 }
 
-async function verifyQuickAuthToken(token: string): Promise<{
-  valid: boolean;
-  fid?: number;
-  username?: string;
-  pfp?: string;
-}> {
-  try {
-    const res = await fetch(`${NEYNAR_API_URL}/farcaster/user/verify_token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.NEYNAR_API_KEY || '',
-      },
-      body: JSON.stringify({ token }),
-    });
-
-    if (!res.ok) return { valid: false };
-    const data = await res.json();
-    return {
-      valid: true,
-      fid: data.fid,
-      username: data.username,
-      pfp: data.pfp_url,
-    };
-  } catch {
-    return { valid: false };
-  }
-}
-
 async function getUserWithPoints(fid: number) {
   const rows = await sql`
     select
       u.id,
       u.fc_fid,
       u.fc_username,
+      u.fc_display_name,
+      u.fc_pfp_url,
+      u.fc_bio,
+      u.fc_score,
       u.referral_code,
       coalesce(sum(qc.points_awarded), 0)::int as points
     from users u
     left join quest_claims qc on qc.user_id = u.id
     where u.fc_fid = ${fid}
-    group by u.id, u.fc_fid, u.fc_username, u.referral_code
+    group by u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, u.fc_bio, u.fc_score, u.referral_code
     limit 1
   `;
   return rows[0] ?? null;
@@ -92,6 +70,25 @@ async function ensureUser(fid: number, username?: string | null) {
   return result[0].id as string;
 }
 
+async function enrichUserProfile(fid: number) {
+  try {
+    const profile = await fetchUserByFid(fid);
+    if (!profile) return;
+
+    await sql`
+      update users
+      set
+        fc_display_name = ${profile.display_name ?? null},
+        fc_pfp_url = ${profile.pfp_url ?? null},
+        fc_bio = ${profile.profile?.bio?.text ?? null},
+        fc_score = ${profile.score ?? null}
+      where fc_fid = ${fid}
+    `;
+  } catch {
+    // Ignore profile enrichment failures
+  }
+}
+
 async function setSession(fid: number, username: string | null, userId: string) {
   const token = await signSession({ fid, username, userId });
   const cookieStore = await cookies();
@@ -104,15 +101,25 @@ async function setSession(fid: number, username: string | null, userId: string) 
 }
 
 async function handleQuickAuth(token: string) {
-  const auth = await verifyQuickAuthToken(token);
-  if (!auth.valid || !auth.fid) {
+  const payload = await quickAuth.verifyJwt({
+    token,
+    domain: new URL(APP_URL).host,
+  });
+
+  // Quick Auth JWT contains fid and username in the payload
+  const quickAuthPayload = payload as { fid?: number; username?: string };
+  const fid = quickAuthPayload?.fid ? Number(quickAuthPayload.fid) : null;
+  const username = quickAuthPayload?.username ?? null;
+
+  if (!fid) {
     return NextResponse.json({ user: null }, { status: 401 });
   }
 
-  const userId = await ensureUser(auth.fid, auth.username);
-  await setSession(auth.fid, auth.username ?? null, userId);
+  const userId = await ensureUser(fid, username);
+  await enrichUserProfile(fid);
+  await setSession(fid, username, userId);
 
-  const user = await getUserWithPoints(auth.fid);
+  const user = await getUserWithPoints(fid);
   return NextResponse.json({ user });
 }
 

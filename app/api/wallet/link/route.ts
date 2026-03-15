@@ -3,6 +3,7 @@ import { verifyMessage } from 'viem';
 import { z } from 'zod';
 import { sql } from '@/lib/db';
 import { requireCurrentUser } from '@/lib/auth';
+import { getQuest } from '@/lib/quests';
 
 const Body = z.object({
   address: z.string(),
@@ -45,6 +46,8 @@ export async function POST(req: Request) {
       verified = true
   `;
 
+  const walletQuest = getQuest('wallet-link');
+
   await sql`
     insert into quest_claims (user_id, quest_id, status, proof, points_awarded)
     values (
@@ -52,10 +55,10 @@ export async function POST(req: Request) {
       'wallet-link',
       'verified',
       ${JSON.stringify({ address: body.address.toLowerCase() })}::jsonb,
-      500
+      ${walletQuest?.points ?? 0}
     )
     on conflict (user_id, quest_id) do nothing
   `;
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, questId: 'wallet-link', pointsAwarded: walletQuest?.points ?? 0 });
 }
