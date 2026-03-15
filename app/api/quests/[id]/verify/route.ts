@@ -99,6 +99,14 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
   let verified = false;
   let proof: Record<string, unknown> = {};
 
+  // Only support Farcaster verification types
+  if (quest.verification === 'wallet_link' || quest.platform === 'x') {
+    return NextResponse.json(
+      { verified: false, error: 'unsupported_verification_type' },
+      { status: 400 }
+    );
+  }
+
   if (quest.verification === 'fc_follow_user') {
     verified = await verifyFarcasterFollow(current.fid, Number(quest.target.targetFid));
     proof = { targetFid: quest.target.targetFid, viewerFid: current.fid };
@@ -124,7 +132,10 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
   }
 
   if (!verified) {
-    return NextResponse.json({ verified: false }, { status: 409 });
+    return NextResponse.json(
+      { verified: false, error: 'not_completed' },
+      { status: 409 }
+    );
   }
 
   await sql`

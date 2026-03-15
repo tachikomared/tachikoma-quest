@@ -1,0 +1,146 @@
+Audit and repair this repo as a hybrid Farcaster Mini App + website.
+
+Goal:
+- Make the app work inside Farcaster Mini Apps and as a normal website.
+- Fix non-working buttons.
+- Fix Farcaster connection/auth.
+- Implement wallet connection for the wallet quest.
+- Make quest actions and verification match each quest type.
+- Keep Farcaster quest verification via Neynar.
+- Do not fake X verification.
+
+Constraints:
+- Use full-file replacements when needed.
+- Do not keep the legacy /api/auth/session flow.
+- Do not use window.open for Mini App navigation.
+- Do not render one generic Verify button for every quest.
+- Do not claim X quests are verified unless X API support is actually added.
+
+Required doc-aligned behavior:
+- Use sdk.isInMiniApp() to branch Mini App behavior vs regular web behavior.
+- In Mini App mode, use sdk.quickAuth.fetch for authenticated requests.
+- Validate Quick Auth on the server before creating a session.
+- Use sdk.actions.ready() after initialization.
+- Use sdk.actions.openUrl for external URLs.
+- Use sdk.actions.viewProfile for Farcaster follow quests.
+- Use sdk.actions.viewCast for Farcaster cast/recast quests.
+- Use Wagmi with @farcaster/miniapp-wagmi-connector for wallet connection in Mini App mode.
+
+Install:
+npm install @farcaster/miniapp-wagmi-connector jose
+
+Files to inspect and rewrite:
+- app/page.tsx
+- app/api/auth/farcaster/me/route.ts
+- app/api/quests/[id]/verify/route.ts
+- app/api/wallet/link/route.ts
+- lib/auth.ts
+- README.md
+- any new wagmi config/provider files needed
+
+Required code changes:
+
+1) app/page.tsx
+- Keep sdk.isInMiniApp() runtime detection.
+- In Mini App mode:
+  - authenticate with sdk.quickAuth.fetch('/api/auth/farcaster/me')
+  - call sdk.actions.ready() once app state is initialized
+- In regular web mode:
+  - do not assume a Farcaster session exists
+  - allow browsing quests and showing referral/leaderboard data if available
+  - show a clear CTA like “Open in Farcaster to verify social quests”
+  - use NEXT_PUBLIC_FARCASTER_APP_URL for that CTA, not APP_URL itself
+- Replace openQuest():
+  - x => sdk.actions.openUrl when in mini app, window.open fallback on web
+  - farcaster follow => sdk.actions.viewProfile when in mini app, window.open fallback on web
+  - farcaster cast => sdk.actions.viewCast when in mini app if castHash exists, else openUrl fallback
+- Render quest-specific actions:
+  - Farcaster quests: Open task + Verify
+  - Wallet quest: Connect wallet button, not Verify
+  - X quests: Open X only, unless a manual-review/admin flow is added
+- Add quest status UI: idle, opened, verifying, verified, failed
+- Add clear disabled state and error messages
+
+2) Wallet integration
+- Add Wagmi config for Base using @farcaster/miniapp-wagmi-connector in Mini App mode
+- Add browser fallback connector for website mode if desired
+- Implement Connect wallet flow:
+  - connect wallet
+  - sign message "Link wallet to TACHI Quest: <fid>"
+  - POST { address, message, signature } to /api/wallet/link
+- Refresh user points after wallet link succeeds
+
+3) app/api/quests/[id]/verify/route.ts
+- Keep Neynar-based verification for:
+  - fc_follow_user
+  - fc_cast_viewer_context
+- Return 400 for unsupported verification types instead of silently failing
+- Do not try to verify wallet or X quests here
+- Add structured error JSON:
+  - { verified: false, error: 'unsupported_verification_type' }
+  - { verified: false, error: 'not_completed' }
+  - { verified: true, pointsAwarded: number }
+- Preserve existing DB inserts and referral qualification logic
+
+4) app/api/auth/farcaster/me/route.ts
+- Keep Quick Auth Bearer-token entry path
+- Harden server-side session creation
+- Do not trust arbitrary cookie contents as identity
+- Sign the session cookie or store a server-side session id
+- Keep GET behavior for existing cookie sessions
+- Keep POST { token } path if useful for explicit login
+
+5) Remove legacy auth
+- Delete app/api/auth/session/route.ts
+- Remove any references to legacy signIn/session cookie flow
+
+6) lib/auth.ts
+- Stop trusting raw JSON cookies directly
+- Read and verify the new signed session format
+- Continue auto-creating the user row if needed
+
+7) Quest definitions and UI behavior
+- Leave Farcaster quests as verifiable
+- Change X quests to one of:
+  a) zero-point “Open on X” actions
+  or
+  b) hidden until real X verification exists
+- Keep wallet-link as a dedicated wallet action quest
+
+8) README.md
+- Rewrite to match the actual stack:
+  - Next.js
+  - Neynar
+  - Postgres
+  - Wagmi/Viem
+  - Farcaster Mini App SDK
+- Remove Privy references
+- Remove old /api/submit and /api/verify references
+- Add actual local setup steps
+- Add env vars:
+  - NEXT_PUBLIC_FARCASTER_APP_URL
+  - NEYNAR_API_KEY
+  - DATABASE_URL
+  - FC_TARGET_FID
+  - FC_LAUNCH_CAST_HASH / FC_LAUNCH_CAST_URL
+
+Acceptance criteria:
+- Inside Farcaster Mini App:
+  - Connect with Farcaster works
+  - Open task buttons work
+  - Follow/recast verify works after the user completes the action
+  - Wallet connect works and awards the wallet quest
+- In regular web browser:
+  - App renders correctly
+  - Buttons are clickable
+  - Website mode does not pretend Farcaster auth exists if it does not
+  - “Open in Farcaster” points to a real Farcaster launch URL, not the same page
+- X quests are not falsely marked as verifiable
+- npm run build succeeds
+
+Verification commands after repair:
+- npm run build
+- curl -s https://<domain>/.well-known/farcaster.json | jq .
+- curl -s https://<domain> | grep -E 'fc:miniapp|fc:frame'
+- Test preview URL:
+  https://farcaster.xyz/~/developers/mini-apps/preview?url=<encoded-app-url>

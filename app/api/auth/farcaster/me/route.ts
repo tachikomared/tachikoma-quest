@@ -1,8 +1,29 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { SignJWT, jwtVerify } from 'jose';
 import { sql } from '@/lib/db';
 
 const NEYNAR_API_URL = 'https://api.neynar.com/v2';
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || process.env.SESSION_SECRET || 'dev-secret-min-32-chars-long!!'
+);
+
+async function signSession(payload: { fid: number; username: string | null; userId: string }) {
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .sign(JWT_SECRET);
+}
+
+async function verifySession(token: string) {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    return payload as { fid: number; username: string | null; userId: string };
+  } catch {
+    return null;
+  }
+}
 
 async function verifyQuickAuthToken(token: string): Promise<{
   valid: boolean;
@@ -47,7 +68,6 @@ async function getUserWithPoints(fid: number) {
     group by u.id, u.fc_fid, u.fc_username, u.referral_code
     limit 1
   `;
-
   return rows[0] ?? null;
 }
 
@@ -69,17 +89,13 @@ async function ensureUser(fid: number, username?: string | null) {
     values (${fid}, ${username ?? null}, encode(gen_random_bytes(4), 'hex'))
     returning id
   `;
-
   return result[0].id as string;
 }
 
-async function setSession(fid: number, username?: string | null, userId?: string) {
+async function setSession(fid: number, username: string | null, userId: string) {
+  const token = await signSession({ fid, username, userId });
   const cookieStore = await cookies();
-  cookieStore.set('session', JSON.stringify({
-    fid,
-    username: username ?? null,
-    userId,
-  }), {
+  cookieStore.set('session', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -94,7 +110,7 @@ async function handleQuickAuth(token: string) {
   }
 
   const userId = await ensureUser(auth.fid, auth.username);
-  await setSession(auth.fid, auth.username, userId);
+  await setSession(auth.fid, auth.username ?? null, userId);
 
   const user = await getUserWithPoints(auth.fid);
   return NextResponse.json({ user });
@@ -108,23 +124,19 @@ export async function GET(req: Request) {
   }
 
   const cookieStore = await cookies();
-  const session = cookieStore.get('session');
+  const sessionToken = cookieStore.get('session');
 
-  if (!session?.value) {
+  if (!sessionToken?.value) {
     return NextResponse.json({ user: null });
   }
 
-  try {
-    const data = JSON.parse(session.value);
-    if (!data.fid) {
-      return NextResponse.json({ user: null });
-    }
-
-    const user = await getUserWithPoints(data.fid);
-    return NextResponse.json({ user });
-  } catch {
+  const session = await verifySession(sessionToken.value);
+  if (!session) {
     return NextResponse.json({ user: null });
   }
+
+  const user = await getUserWithPoints(session.fid);
+  return NextResponse.json({ user });
 }
 
 export async function POST(req: Request) {

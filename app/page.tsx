@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { useConnect, useAccount, useSignMessage } from 'wagmi';
+import { base } from 'viem/chains';
+
+type QuestStatus = 'idle' | 'opened' | 'verifying' | 'verified' | 'failed';
 
 type Quest = {
   id: string;
@@ -23,25 +27,36 @@ type User = {
 };
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const FARCASTER_APP_URL = process.env.NEXT_PUBLIC_FARCASTER_APP_URL || 'https://warpcast.com/~/mini-apps/launch?url=' + encodeURIComponent(APP_URL);
+
+function useQuestStatuses() {
+  const [statuses, setStatuses] = useState<Record<string, QuestStatus>>({});
+  const setStatus = (id: string, status: QuestStatus) => {
+    setStatuses(s => ({ ...s, [id]: status }));
+  };
+  return { statuses, setStatus };
+}
 
 export default function HomePage() {
   const [quests, setQuests] = useState<Quest[]>([]);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [refCode, setRefCode] = useState('');
   const [isMiniApp, setIsMiniApp] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const { statuses, setStatus } = useQuestStatuses();
+  
+  const { connect, connectors } = useConnect();
+  const { address, isConnected } = useAccount();
+  const { signMessageAsync } = useSignMessage();
 
   useEffect(() => {
     fetch('/api/quests')
-      .then((r) => r.json())
-      .then((d) => setQuests(d.quests ?? []));
+      .then(r => r.json())
+      .then(d => setQuests(d.quests ?? []));
 
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
-    if (ref) {
-      setRefCode(ref);
-    }
+    if (ref) setRefCode(ref);
 
     (async () => {
       try {
@@ -75,6 +90,14 @@ export default function HomePage() {
     return `${window.location.origin}?ref=${user.referral_code}`;
   }, [user?.referral_code]);
 
+  async function refreshUser() {
+    const res = await fetch('/api/auth/farcaster/me', { credentials: 'include' });
+    if (res.ok) {
+      const data = await res.json();
+      setUser(data.user ?? null);
+    }
+  }
+
   async function handleMiniAppAuth() {
     try {
       const res = await sdk.quickAuth.fetch('/api/auth/farcaster/me');
@@ -87,53 +110,89 @@ export default function HomePage() {
     }
   }
 
-  async function verifyQuest(quest: Quest) {
-    if (!user) return;
-    setLoading((s) => ({ ...s, [quest.id]: true }));
-    try {
-      const res = await fetch(`/api/quests/${quest.id}/verify`, {
-        method: 'POST',
-      });
-      const data = await res.json();
-
-      if (data.verified) {
-        const meRes = await fetch('/api/auth/farcaster/me', { credentials: 'include' });
-        const meData = await meRes.json();
-        if (meData.user) {
-          setUser(meData.user);
-        }
-      }
-    } catch (e) {
-      console.error('Verification failed:', e);
-    } finally {
-      setLoading((s) => ({ ...s, [quest.id]: false }));
-    }
-  }
-
-  function openQuest(quest: Quest) {
+  async function openQuest(quest: Quest) {
+    setStatus(quest.id, 'opened');
+    
     if (quest.platform === 'x' && quest.target.url) {
-      window.open(quest.target.url, '_blank');
+      if (isMiniApp) {
+        await sdk.actions.openUrl({ url: quest.target.url });
+      } else {
+        window.open(quest.target.url, '_blank');
+      }
       return;
     }
 
     if (quest.platform === 'farcaster') {
-      if (quest.target.castUrl) {
-        window.open(quest.target.castUrl, '_blank');
-      } else if (quest.target.targetFid) {
-        window.open(`https://farcaster.xyz/~/profiles/${quest.target.targetFid}`, '_blank');
+      if (quest.action === 'follow_user' && quest.target.targetFid) {
+        if (isMiniApp) {
+          await sdk.actions.viewProfile({ fid: Number(quest.target.targetFid) });
+        } else {
+          window.open(`https://warpcast.com/~/profiles/${quest.target.targetFid}`, '_blank');
+        }
+      } else if (quest.target.castHash) {
+        if (isMiniApp) {
+          await sdk.actions.viewCast({ hash: quest.target.castHash });
+        } else {
+          const castUrl = quest.target.castUrl || `https://warpcast.com/~/casts/${quest.target.castHash}`;
+          window.open(castUrl, '_blank');
+        }
+      } else if (quest.target.castUrl) {
+        if (isMiniApp) {
+          await sdk.actions.openUrl({ url: quest.target.castUrl });
+        } else {
+          window.open(quest.target.castUrl, '_blank');
+        }
       }
+    }
+  }
+
+  async function verifyQuest(quest: Quest) {
+    if (!user) return;
+    if (quest.platform === 'x' || quest.verification === 'wallet_link') {
+      setStatus(quest.id, 'failed');
+      return;
+    }
+    setStatus(quest.id, 'verifying');
+    try {
+      const res = await fetch(`/api/quests/${quest.id}/verify`, { method: 'POST' });
+      const data = await res.json();
+      if (data.verified) {
+        setStatus(quest.id, 'verified');
+        await refreshUser();
+      } else {
+        setStatus(quest.id, 'failed');
+      }
+    } catch (e) {
+      setStatus(quest.id, 'failed');
+    }
+  }
+
+  async function connectWallet(quest: Quest) {
+    if (!user || !address) return;
+    try {
+      const message = `Link wallet to TACHI Quest: ${user.fc_fid}`;
+      const signature = await signMessageAsync({ message });
+      const res = await fetch('/api/wallet/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, message, signature }),
+      });
+      if (res.ok) {
+        setStatus(quest.id, 'verified');
+        await refreshUser();
+      }
+    } catch (e) {
+      console.error('Wallet connect failed:', e);
     }
   }
 
   async function attachReferral() {
     if (!refCode || !user) return;
-
     const res = await fetch('/api/referrals/attach', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: refCode }),
     });
-
     if (res.ok) {
       setRefCode('');
       const url = new URL(window.location.href);
@@ -142,9 +201,20 @@ export default function HomePage() {
     }
   }
 
+  function getStatusBadge(status: QuestStatus) {
+    const styles: Record<QuestStatus, string> = {
+      idle: 'bg-white/10 text-white/60',
+      opened: 'bg-yellow-500/20 text-yellow-400',
+      verifying: 'bg-blue-500/20 text-blue-400',
+      verified: 'bg-green-500/20 text-green-400',
+      failed: 'bg-red-500/20 text-red-400',
+    };
+    return <span className={`px-2 py-1 rounded text-xs ${styles[status]}`}>{status}</span>;
+  }
+
   if (!authChecked) {
     return (
-      <main className="min-h-screen bg-black text-white flex items-center justify-center p-6">
+      <main className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-white/70">Loading...</div>
       </main>
     );
@@ -156,31 +226,23 @@ export default function HomePage() {
         <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold">TACHI Quest</h1>
-            <p className="text-white/60 mt-2">
-              Complete quests and link your wallet for $TACHI airdrop eligibility
-            </p>
+            <p className="text-white/60 mt-2">Complete quests for $TACHI airdrop eligibility</p>
           </div>
           <div className="flex items-center gap-3">
             {!user && isMiniApp && (
-              <button
-                onClick={handleMiniAppAuth}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-5 rounded-xl transition"
-              >
+              <button onClick={handleMiniAppAuth} className="bg-purple-600 hover:bg-purple-700 px-5 py-2 rounded-xl font-semibold">
                 Connect with Farcaster
               </button>
             )}
             {!user && !isMiniApp && (
-              <a
-                href={APP_URL}
-                className="bg-white/10 hover:bg-white/15 text-white font-semibold py-2 px-5 rounded-xl transition"
-              >
+              <a href={FARCASTER_APP_URL} className="bg-white/10 hover:bg-white/15 px-5 py-2 rounded-xl font-semibold">
                 Open in Farcaster
               </a>
             )}
             {user && (
               <div className="text-right">
                 <div className="text-sm text-white/60">@{user.fc_username ?? 'anon'}</div>
-                <div className="text-cyan-400 font-semibold">{user.points ?? 0} points</div>
+                <div className="text-cyan-400 font-semibold">{user.points} points</div>
               </div>
             )}
           </div>
@@ -202,22 +264,17 @@ export default function HomePage() {
 
             {user && (
               <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                <div className="text-sm text-white/60 mb-1">Your Referral Code</div>
+                <div className="text-sm text-white/60 mb-1">Referral Code</div>
                 <div className="font-mono text-lg">{user.referral_code}</div>
-                <div className="text-xs text-white/40 mt-2 truncate">Share: {shareLink}</div>
+                <div className="text-xs text-white/40 mt-2 truncate">{shareLink}</div>
               </div>
             )}
 
             {refCode && user && (
               <div className="p-4 bg-purple-900/30 border border-purple-500/30 rounded-2xl">
-                <p className="text-sm mb-2">
-                  You were referred by: <span className="font-mono">{refCode}</span>
-                </p>
-                <button
-                  onClick={attachReferral}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium py-2 rounded-lg transition"
-                >
-                  Attach Referral Code
+                <p className="text-sm mb-2">Referred by: <span className="font-mono">{refCode}</span></p>
+                <button onClick={attachReferral} className="w-full bg-purple-600 hover:bg-purple-700 text-sm font-medium py-2 rounded-lg">
+                  Attach Code
                 </button>
               </div>
             )}
@@ -229,41 +286,62 @@ export default function HomePage() {
               <div className="text-sm text-white/50">{quests.length} active</div>
             </div>
             <div className="grid gap-4">
-              {quests.map((quest) => (
-                <div
-                  key={quest.id}
-                  className="rounded-2xl border border-white/10 bg-white/5 p-5"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-base font-semibold">{quest.title}</h3>
-                      <p className="mt-1 text-sm text-white/60">{quest.description}</p>
-                    </div>
-                    {quest.points > 0 && (
-                      <div className="text-cyan-400 font-semibold whitespace-nowrap">+{quest.points}</div>
-                    )}
-                  </div>
-                  <div className="mt-2 text-xs text-white/40 uppercase tracking-wider">
-                    {quest.platform}
-                  </div>
+              {quests.map((quest) => {
+                const status = statuses[quest.id] ?? 'idle';
+                const isWallet = quest.verification === 'wallet_link';
+                const isX = quest.platform === 'x';
+                const isFarcaster = quest.platform === 'farcaster';
 
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <button
-                      onClick={() => openQuest(quest)}
-                      className="rounded-xl px-4 py-2 bg-white/10 hover:bg-white/15"
-                    >
-                      Open task
-                    </button>
-                    <button
-                      onClick={() => verifyQuest(quest)}
-                      disabled={!user || loading[quest.id]}
-                      className="rounded-xl px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
-                    >
-                      {loading[quest.id] ? 'Verifying...' : 'Verify'}
-                    </button>
+                return (
+                  <div key={quest.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-base font-semibold">{quest.title}</h3>
+                        <p className="mt-1 text-sm text-white/60">{quest.description}</p>
+                      </div>
+                      <div className="text-cyan-400 font-semibold whitespace-nowrap">+{quest.points}</div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-xs text-white/40 uppercase">{quest.platform}</span>
+                      {getStatusBadge(status)}
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      {(isFarcaster || isX) && (
+                        <button onClick={() => openQuest(quest)} className="rounded-xl px-4 py-2 bg-white/10 hover:bg-white/15">
+                          Open task
+                        </button>
+                      )}
+                      {isFarcaster && (
+                        <button
+                          onClick={() => verifyQuest(quest)}
+                          disabled={!user || status === 'verifying'}
+                          className="rounded-xl px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
+                        >
+                          {status === 'verifying' ? 'Verifying...' : 'Verify'}
+                        </button>
+                      )}
+                      {isWallet && (
+                        <button
+                          onClick={() => connect({ connector: connectors[0] })}
+                          disabled={status === 'verified' || isConnected}
+                          className="rounded-xl px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
+                        >
+                          {isConnected ? 'Connected' : 'Connect Wallet'}
+                        </button>
+                      )}
+                      {isWallet && isConnected && status !== 'verified' && (
+                        <button
+                          onClick={() => connectWallet(quest)}
+                          className="rounded-xl px-4 py-2 bg-green-600 hover:bg-green-700"
+                        >
+                          Link Wallet
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         </div>

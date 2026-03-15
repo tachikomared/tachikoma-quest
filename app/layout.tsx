@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { Providers } from './providers';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -32,7 +33,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-black text-white">{children}</body>
+      <body className="min-h-screen bg-black text-white">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

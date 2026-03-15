@@ -1,5 +1,10 @@
 import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
 import { sql } from '@/lib/db';
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || process.env.SESSION_SECRET || 'dev-secret-min-32-chars-long!!'
+);
 
 export type CurrentUser = {
   id: string;
@@ -7,22 +12,25 @@ export type CurrentUser = {
   username: string | null;
 };
 
+async function verifySession(token: string): Promise<{ fid: number; username: string | null; userId: string } | null> {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    return payload as { fid: number; username: string | null; userId: string };
+  } catch {
+    return null;
+  }
+}
+
 export async function requireCurrentUser(): Promise<CurrentUser> {
   const cookieStore = await cookies();
-  const session = cookieStore.get('session');
+  const sessionCookie = cookieStore.get('session');
 
-  if (!session?.value) {
+  if (!sessionCookie?.value) {
     throw new Error('Unauthorized');
   }
 
-  let data: { fid?: number; username?: string | null; userId?: string };
-  try {
-    data = JSON.parse(session.value);
-  } catch {
-    throw new Error('Invalid session');
-  }
-
-  if (!data.fid) {
+  const session = await verifySession(sessionCookie.value);
+  if (!session?.fid) {
     throw new Error('Invalid session');
   }
 
@@ -30,7 +38,7 @@ export async function requireCurrentUser(): Promise<CurrentUser> {
   const rows = await sql`
     select id, fc_fid, fc_username
     from users
-    where fc_fid = ${data.fid}
+    where fc_fid = ${session.fid}
     limit 1
   `;
 
@@ -42,10 +50,10 @@ export async function requireCurrentUser(): Promise<CurrentUser> {
     };
   }
 
-  // User not in DB yet - create them
+  // Create new user
   const result = await sql`
     insert into users (fc_fid, fc_username, referral_code)
-    values (${data.fid}, ${data.username ?? null}, encode(gen_random_bytes(4), 'hex'))
+    values (${session.fid}, ${session.username ?? null}, encode(gen_random_bytes(4), 'hex'))
     returning id, fc_fid, fc_username
   `;
 
