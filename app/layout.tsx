@@ -8,8 +8,8 @@ export const metadata: Metadata = {
   title: 'TACHI Quest',
   description: 'Complete verified Farcaster quests and link wallet for $TACHI airdrop eligibility',
   other: {
-    'fc:frame': JSON.stringify({
-      version: 'next',
+    'fc:miniapp': JSON.stringify({
+      version: '1',
       imageUrl: `${APP_URL}/og-image.png`,
       button: {
         title: 'Start',
