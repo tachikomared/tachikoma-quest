@@ -29,17 +29,14 @@ export default function HomePage() {
   const [isFarcaster, setIsFarcaster] = useState(false);
 
   useEffect(() => {
-    // Check if in Farcaster environment
     sdk.context.then((ctx) => {
       setIsFarcaster(Boolean(ctx?.user));
     }).catch(() => {});
-    
-    // Fetch quests
+
     fetch('/api/quests')
       .then((r) => r.json())
       .then((d) => setQuests(d.quests ?? []));
-    
-    // Fetch current user
+
     fetch('/api/auth/me')
       .then((r) => r.json())
       .then((d) => {
@@ -47,33 +44,27 @@ export default function HomePage() {
           setUser(d.user);
         }
       });
-    
-    // Check for ref code in URL
+
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
     if (ref) {
       setRefCode(ref);
     }
-    
-    // Signal ready to Farcaster
+
     sdk.actions.ready().catch(() => {});
   }, []);
 
   async function handleAuth() {
     try {
-      // Get context first for user info
       const ctx = await sdk.context;
-      
-      // Use Neynar auth - get signature from user
       const result = await sdk.actions.signIn({
         nonce: Math.random().toString(36).slice(2),
       });
-      
+
       if (!result) {
         throw new Error('Auth failed');
       }
-      
-      // Send to server to create session
+
       const res = await fetch('/api/auth/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -83,7 +74,7 @@ export default function HomePage() {
           user: ctx?.user,
         }),
       });
-      
+
       if (res.ok) {
         window.location.reload();
       }
@@ -95,29 +86,25 @@ export default function HomePage() {
   async function verifyQuest(quest: Quest) {
     setLoading((s) => ({ ...s, [quest.id]: true }));
     try {
-      // For external quests (X), just open the URL
       if (quest.platform === 'x' && quest.target.url) {
         window.open(quest.target.url, '_blank');
         return;
       }
-      
-      // For Farcaster quests, open the target first
+
       if (quest.platform === 'farcaster') {
         if (quest.target.castUrl) {
           window.open(quest.target.castUrl, '_blank');
         } else if (quest.target.targetFid) {
-          window.open(`https://warpcast.com/~/profiles/${quest.target.targetFid}`, '_blank');
+          window.open(`https://farcaster.xyz/~/profiles/${quest.target.targetFid}`, '_blank');
         }
       }
-      
-      // Then verify
-      const res = await fetch(`/api/quests/${quest.id}/verify`, { 
-        method: 'POST' 
+
+      const res = await fetch(`/api/quests/${quest.id}/verify`, {
+        method: 'POST',
       });
       const data = await res.json();
-      
+
       if (data.verified) {
-        // Refresh user data
         const meRes = await fetch('/api/me');
         const meData = await meRes.json();
         if (meData.user) {
@@ -133,16 +120,15 @@ export default function HomePage() {
 
   async function attachReferral() {
     if (!refCode) return;
-    
+
     const res = await fetch('/api/referrals/attach', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: refCode }),
     });
-    
+
     if (res.ok) {
       setRefCode('');
-      // Remove ref from URL
       const url = new URL(window.location.href);
       url.searchParams.delete('ref');
       window.history.replaceState({}, '', url);
@@ -178,7 +164,7 @@ export default function HomePage() {
             <div className="text-cyan-400 font-semibold">{user.points ?? 0} points</div>
           </div>
         </div>
-        
+
         {refCode && (
           <div className="mb-6 p-4 bg-purple-900/30 border border-purple-500/30 rounded-xl">
             <p className="text-sm mb-2">You were referred by: <span className="font-mono">{refCode}</span></p>
@@ -190,12 +176,13 @@ export default function HomePage() {
             </button>
           </div>
         )}
-        
+
         <div className="mb-6 p-4 bg-white/5 rounded-xl">
           <div className="text-sm text-white/60 mb-1">Your Referral Code</div>
           <div className="font-mono text-lg">{user.referral_code}</div>
+          <div className="text-xs text-white/40 mt-2">Share: {`${window.location.origin}?ref=${user.referral_code}`}</div>
         </div>
-        
+
         <div className="grid gap-3">
           {quests.map((quest) => (
             <button

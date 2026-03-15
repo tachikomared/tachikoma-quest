@@ -5,10 +5,11 @@ const sql = postgres(process.env.DATABASE_URL, {
 });
 
 const quests = [
-  ['fc-follow-main', 'Follow on Farcaster', 'Follow the main $TACHI Farcaster account', 'farcaster', 'follow_user', 'fc_follow_user', 150, false, true, JSON.stringify({ targetFid: Number(process.env.FC_TARGET_FID || 0) })],
-  ['fc-recast-launch', 'Recast launch cast', 'Recast the official $TACHI launch cast', 'farcaster', 'recast_cast', 'fc_cast_viewer_context', 250, false, true, JSON.stringify({ castHash: process.env.FC_LAUNCH_CAST_HASH, castUrl: process.env.FC_LAUNCH_CAST_URL })],
+  ['fc-follow-main', 'Follow on Farcaster', 'Follow @smolekoma on Farcaster', 'farcaster', 'follow_user', 'fc_follow_user', 150, false, true, JSON.stringify({ targetFid: Number(process.env.FC_TARGET_FID || 2656205) })],
+  ['fc-recast-launch', 'Recast launch cast', 'Recast the official launch cast', 'farcaster', 'recast_cast', 'fc_cast_viewer_context', 250, false, true, JSON.stringify({ castHash: process.env.FC_LAUNCH_CAST_HASH, castUrl: process.env.FC_LAUNCH_CAST_URL })],
   ['wallet-link', 'Link wallet', 'Link a Base wallet for airdrop eligibility', 'wallet', 'link_wallet', 'wallet_signature', 500, false, true, JSON.stringify({})],
-  ['x-follow', 'Follow on X', 'Open the X profile', 'x', 'open_external', 'manual_open', 0, false, true, JSON.stringify({ url: 'https://x.com/YOUR_HANDLE' })]
+  ['x-follow', 'Follow on X', 'Follow @smolekoma on X', 'x', 'open_external', 'manual_open', 100, false, true, JSON.stringify({ url: 'https://x.com/smolekoma' })],
+  ['x-like-tweet', 'Like the announcement tweet', 'Open and like the announcement tweet', 'x', 'open_external', 'manual_open', 150, false, true, JSON.stringify({ url: 'https://x.com/smolekoma/status/2029672279416721648?s=20' })]
 ];
 
 for (const row of quests) {
