@@ -31,6 +31,10 @@ export type NeynarUser = {
   experimental?: {
     neynar_user_score?: number;
   };
+  viewer_context?: {
+    following: boolean;
+    followed_by: boolean;
+  };
 };
 
 export async function fetchUserWithViewer(targetFid: number, viewerFid: number): Promise<NeynarUser | null> {
