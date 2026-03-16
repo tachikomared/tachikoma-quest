@@ -65,3 +65,249 @@
   background: rgba(255, 26, 26, 0.3);
   color: #f0f0f0;
 }
+/* TACHI Quest - Mecha Crab Military Interface */
+
+:root {
+  /* Core Colors */
+  --void: #050508;
+  --void-light: #0a0a0f;
+  --gunmetal: #1a1a24;
+  --gunmetal-light: #252535;
+  
+  /* Alert Colors */
+  --crimson: #ff1a1a;
+  --crimson-dark: #cc0000;
+  --molten: #ff6b00;
+  --toxic: #00f0ff;
+  --terminal: #39ff14;
+  
+  /* Text */
+  --text-primary: #f0f0f0;
+  --text-secondary: #8a8a9a;
+  --text-dim: #5a5a6a;
+}
+
+/* Scanline Overlay */
+.scanlines {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.03) 0%,
+    transparent 50%,
+    rgba(0,0,0,0.03) 100%
+  );
+  background-size: 100% 4px;
+  z-index: 9999;
+}
+
+/* CRT Flicker Animation */
+@keyframes flicker {
+  0% { opacity: 0.97; }
+  5% { opacity: 0.95; }
+  10% { opacity: 0.97; }
+  15% { opacity: 0.94; }
+  20% { opacity: 0.98; }
+  50% { opacity: 0.95; }
+  80% { opacity: 0.98; }
+  100% { opacity: 0.97; }
+}
+
+.crt-flicker {
+  animation: flicker 0.15s infinite;
+}
+
+/* Holographic Shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.holographic {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0,240,255,0.1) 25%,
+    rgba(0,240,255,0.2) 50%,
+    rgba(0,240,255,0.1) 75%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite linear;
+}
+
+/* Glitch Effect */
+@keyframes glitch {
+  0% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  100% { transform: translate(0); }
+}
+
+.glitch:hover {
+  animation: glitch 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* Military Button */
+.mecha-button {
+  position: relative;
+  background: linear-gradient(135deg, var(--gunmetal) 0%, var(--gunmetal-light) 100%);
+  border: 2px solid var(--crimson-dark);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: 'Share Tech Mono', monospace;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding: 12px 24px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.mecha-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,26,26,0.2),
+    transparent
+  );
+  transition: left 0.5s ease;
+}
+
+.mecha-button:hover::before {
+  left: 100%;
+}
+
+.mecha-button:hover {
+  border-color: var(--crimson);
+  box-shadow: 0 0 20px rgba(255,26,26,0.3);
+}
+
+/* Mission Card */
+.mission-card {
+  background: linear-gradient(135deg, var(--gunmetal) 0%, rgba(26,26,36,0.8) 100%);
+  border: 1px solid var(--gunmetal-light);
+  border-left: 4px solid var(--crimson);
+  border-radius: 8px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.mission-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--crimson), transparent);
+}
+
+/* Status Indicators */
+.status-pending { color: var(--molten); }
+.status-active { color: var(--toxic); animation: pulse 1s infinite; }
+.status-completed { color: var(--terminal); }
+.status-failed { color: var(--crimson); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Rank Badges */
+.rank-private { border-color: #8a8a9a; }
+.rank-corporal { border-color: #4a9a4a; }
+.rank-sergeant { border-color: #4a4a9a; }
+.rank-lieutenant { border-color: #9a9a4a; }
+.rank-captain { border-color: #9a4a4a; }
+.rank-major { border-color: var(--molten); }
+.rank-colonel { border-color: var(--crimson); }
+.rank-general { border-color: var(--toxic); }
+
+/* Terminal Text */
+.terminal-text {
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--terminal);
+  text-shadow: 0 0 10px rgba(57,255,20,0.3);
+}
+
+/* Progress Bar */
+.progress-container {
+  background: var(--void);
+  border: 1px solid var(--gunmetal-light);
+  border-radius: 2px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--crimson), var(--molten));
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+}
+
+/* Damage Texture Overlay */
+.damage-texture {
+  position: relative;
+}
+
+.damage-texture::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+}
+
+/* Warning Stripe */
+.warning-stripe {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--crimson),
+    var(--crimson) 10px,
+    var(--molten) 10px,
+    var(--molten) 20px
+  );
+  height: 4px;
+}
+
+/* Boot Sequence Animation */
+@keyframes boot-line {
+  0% { width: 0; }
+  100% { width: 100%; }
+}
+
+.boot-line {
+  height: 2px;
+  background: var(--terminal);
+  animation: boot-line 2s ease-out forwards;
+}

@@ -1,2 +1,4 @@
 TACHIQUEST/
 db/schema.ts
+*.test.ts
+*.spec.ts
