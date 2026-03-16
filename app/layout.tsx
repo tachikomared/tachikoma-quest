@@ -1,57 +1,15 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import './mecha-theme.css';
 import { Providers } from './providers';
 import { AuthGuard } from '@/components/auth-guard';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://tachi-quest.vercel.app';
-
 export const metadata: Metadata = {
-  metadataBase: new URL(APP_URL),
-  title: 'TACHI Quest',
-  description: 'Complete verified Farcaster quests and link your wallet for $TACHI airdrop eligibility',
-  keywords: ['TACHI', 'Farcaster', 'Quests', 'Airdrop', 'Base', 'Crypto'],
-  authors: [{ name: 'TACHI' }],
-  openGraph: {
-    title: 'TACHI Quest',
-    description: 'Complete verified Farcaster quests and link your wallet for $TACHI airdrop eligibility',
-    url: APP_URL,
-    siteName: 'TACHI Quest',
-    images: [
-      {
-        url: `${APP_URL}/og-image.png`,
-        width: 1200,
-        height: 630,
-        alt: 'TACHI Quest',
-      },
-    ],
-    locale: 'en_US',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'TACHI Quest',
-    description: 'Complete verified Farcaster quests and link your wallet for $TACHI airdrop eligibility',
-    images: [`${APP_URL}/og-image.png`],
-  },
+  title: 'TACHI QUEST // Mecha Crab Operations',
+  description: 'Complete missions. Earn XP. Stack $TACHI. Join the Crab Army.',
+  manifest: '/manifest.json',
   icons: {
     icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
-  },
-  other: {
-    'fc:miniapp': JSON.stringify({
-      version: '1',
-      imageUrl: `${APP_URL}/og-image.png`,
-      button: {
-        title: 'Start Quest',
-        action: {
-          type: 'launch_miniapp',
-          name: 'TACHI Quest',
-          url: APP_URL,
-          splashImageUrl: `${APP_URL}/splash.png`,
-          splashBackgroundColor: '#0a0a0f'
-        }
-      }
-    }),
   },
 };
 
@@ -60,7 +18,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0a0a0f',
+  themeColor: '#050508',
 };
 
 export default function RootLayout({
@@ -70,7 +28,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className="min-h-screen bg-[#0a0a0f] text-[#F9FAFB] antialiased">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Press+Start+2P&display=swap" rel="stylesheet" />
+      </head>
+      <body className="min-h-screen bg-[#050508] text-[#f0f0f0] antialiased font-mono">
         <Providers>
           <AuthGuard>{children}</AuthGuard>
         </Providers>

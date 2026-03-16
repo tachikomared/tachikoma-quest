@@ -8,7 +8,6 @@ import { detectMiniApp } from '@/lib/miniapp';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { AuthState, authenticate, AuthUser } from '@/lib/auth-utils';
 
-// Auth context for sharing auth state across components
 const AuthContext = createContext<{
   auth: AuthState;
   isMiniApp: boolean;
@@ -31,19 +30,16 @@ export function Providers({ children }: { children: ReactNode }) {
   const [sdkReady, setSdkReady] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
-  // Mark as client-side rendered
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Detect Mini App context
   useEffect(() => {
     let mounted = true;
     
     async function init() {
       try {
         const inMiniApp = await detectMiniApp();
-        console.log('[providers] isInMiniApp:', inMiniApp);
         if (mounted) setIsMiniApp(inMiniApp);
       } catch (e) {
         console.error('[providers] Detection failed:', e);
@@ -58,7 +54,6 @@ export function Providers({ children }: { children: ReactNode }) {
     return () => { mounted = false; };
   }, [isClient]);
 
-  // Authenticate once we know if we're in Mini App
   useEffect(() => {
     let mounted = true;
     
@@ -68,7 +63,6 @@ export function Providers({ children }: { children: ReactNode }) {
       const state = await authenticate(isMiniApp);
       if (mounted) setAuth(state);
       
-      // Signal SDK ready after auth attempt
       if (isMiniApp) {
         try {
           await sdk.actions.ready();
@@ -76,7 +70,6 @@ export function Providers({ children }: { children: ReactNode }) {
           if (mounted) setSdkReady(true);
         } catch (e) {
           console.error('[providers] SDK ready() failed:', e);
-          // Still mark as ready even if it fails
           if (mounted) setSdkReady(true);
         }
       } else {
@@ -95,13 +88,15 @@ export function Providers({ children }: { children: ReactNode }) {
     setAuth(state);
   };
 
-  // Don't render until client-side hydration is complete
   if (!isClient) {
     return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
-          <div className="text-gray-400 text-sm">Loading TACHI Quest...</div>
+      <div className="min-h-screen bg-[#050508] flex items-center justify-center crt-flicker">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🦀</div>
+          <div className="terminal-text text-sm">INITIALIZING TACHI SYSTEMS...</div>
+          <div className="w-48 h-1 bg-[#1a1a24] mt-4 mx-auto overflow-hidden">
+            <div className="boot-line" />
+          </div>
         </div>
       </div>
     );
@@ -113,6 +108,7 @@ export function Providers({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{ auth, isMiniApp, sdkReady, refreshAuth }}>
       <WagmiProvider config={config}>
         <QueryClientProvider client={queryClient}>
+          <div className="scanlines" />
           {children}
         </QueryClientProvider>
       </WagmiProvider>
