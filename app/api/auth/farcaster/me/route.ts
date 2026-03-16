@@ -8,13 +8,10 @@ import { signSession, getFullUser, setSession } from '@/lib/auth';
 const quickAuth = createClient();
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-// Domain must match exactly what's in the farcaster.json manifest
-const DOMAIN = 'tachi-quest.vercel.app';
-
 function getRequestHost(req: Request): string {
-  // Always use the canonical domain for JWT verification
-  // The JWT is signed for the domain in the manifest
-  return DOMAIN;
+  // Use APP_URL for JWT verification domain
+  // This must match the domain in the farcaster.json manifest
+  return new URL(APP_URL).host;
 }
 
 async function ensureUser(fid: number, neynarUser: NeynarUser | null): Promise<string> {
@@ -86,6 +83,7 @@ async function handleQuickAuth(token: string, req: Request) {
       domain,
     });
     console.log('[auth] JWT verified successfully');
+    console.log('[auth] JWT payload:', JSON.stringify(payload));
   } catch (e: any) {
     console.error('[auth] JWT verification failed:', e?.message || e);
     console.error('[auth] JWT error details:', e);
@@ -95,16 +93,18 @@ async function handleQuickAuth(token: string, req: Request) {
     );
   }
 
-  const quickAuthPayload = payload as { fid?: number; username?: string };
-  const fid = quickAuthPayload?.fid ? Number(quickAuthPayload.fid) : null;
-  const username = quickAuthPayload?.username ?? null;
-
-  if (!fid) {
+  // Quick Auth JWT has FID in payload.sub, not payload.fid
+  const fid = typeof payload.sub === 'number' ? payload.sub : Number(payload.sub);
+  
+  if (!fid || Number.isNaN(fid)) {
     return NextResponse.json(
-      { user: null, error: 'missing_fid' },
+      { user: null, error: 'missing_fid', details: 'FID not found in token sub claim' },
       { status: 401 }
     );
   }
+  
+  // username is not guaranteed in the JWT
+  const username = null;
 
   console.log('[auth] Authenticating FID:', fid);
 
