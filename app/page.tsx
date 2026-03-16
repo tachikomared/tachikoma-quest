@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
-import { detectMiniApp } from '@/lib/miniapp';
+import { useAuth } from '@/app/providers';
 import { useConnect, useAccount, useSignMessage, useReadContract } from 'wagmi';
 import { TACHI_CONTRACT, ERC20_BALANCE_ABI, MOCK_REFERRAL_REWARDS, MOCK_LEADERBOARD } from '@/data/mocks';
 
@@ -17,49 +17,11 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 ];
 
 export default function HomePage() {
+  const { auth, isMiniApp } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('quests');
-  const [user, setUser] = useState<any>(null);
-  const [isMiniApp, setIsMiniApp] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const inMiniApp = await detectMiniApp();
-        setIsMiniApp(inMiniApp);
-
-        if (inMiniApp) {
-          const res = await sdk.quickAuth.fetch('/api/auth/farcaster/me');
-          if (res.ok) {
-            const data = await res.json();
-            setUser(data.user);
-          }
-          await sdk.actions.ready();
-        } else {
-          const res = await fetch('/api/me', { credentials: 'include' });
-          if (res.ok) {
-            const data = await res.json();
-            setUser(data.user);
-          }
-        }
-      } catch (e) {
-        console.error('Auth failed:', e);
-      } finally {
-        setAuthChecked(true);
-      }
-    })();
-  }, []);
-
-  if (!authChecked) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
-          <div className="text-gray-400 text-sm">Loading TACHI Quest...</div>
-        </div>
-      </div>
-    );
-  }
+  // Get user from auth context
+  const user = auth.status === 'authenticated' ? auth.user : null;
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-gray-100">
@@ -74,7 +36,11 @@ export default function HomePage() {
           </div>
           {user && (
             <div className="flex items-center gap-2 bg-gray-900/50 rounded-full px-3 py-1.5 border border-red-900/30">
-              <img src={user.fc_pfp_url || '/default-avatar.png'} alt="" className="w-6 h-6 rounded-full" />
+              <img 
+                src={user.fcPfpUrl || '/default-avatar.png'} 
+                alt="" 
+                className="w-6 h-6 rounded-full" 
+              />
               <span className="text-xs font-medium text-red-400">{user.points || 0} XP</span>
             </div>
           )}
@@ -162,10 +128,10 @@ function QuestsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
       {user && (
         <div className="bg-gradient-to-br from-red-950/50 to-gray-900 rounded-2xl p-4 border border-red-900/30">
           <div className="flex items-center gap-3 mb-3">
-            <img src={user.fc_pfp_url} alt="" className="w-10 h-10 rounded-full border-2 border-red-600" />
+            <img src={user.fcPfpUrl} alt="" className="w-10 h-10 rounded-full border-2 border-red-600" />
             <div>
-              <p className="font-bold text-sm">@{user.fc_username}</p>
-              <p className="text-xs text-gray-500">FID #{user.fc_fid}</p>
+              <p className="font-bold text-sm">@{user.fcUsername}</p>
+              <p className="text-xs text-gray-500">FID #{user.fcFid}</p>
             </div>
             <div className="ml-auto text-right">
               <p className="font-bold text-red-400 text-lg">{user.points || 0} XP</p>
@@ -241,7 +207,7 @@ function LeaderboardTab({ user }: { user: any }) {
           <div 
             key={i} 
             className={`flex items-center gap-3 p-3 ${i !== 0 ? 'border-t border-gray-800' : ''} ${
-              entry.username === user?.fc_username ? 'bg-red-950/30' : ''
+              entry.username === user?.fcUsername ? 'bg-red-950/30' : ''
             }`}
           >
             <span className="w-6 text-center text-sm font-bold text-gray-500">
@@ -264,7 +230,7 @@ function LeaderboardTab({ user }: { user: any }) {
 // Referrals Tab
 function ReferralsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   const [copied, setCopied] = useState(false);
-  const referralCode = user?.referral_code || 'NO-CODE';
+  const referralCode = user?.referralCode || 'NO-CODE';
   const referralLink = `${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${referralCode}`;
 
   const handleCopy = () => {
@@ -355,13 +321,13 @@ function ReferralsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
 
 // Profile Tab
 function ProfileTab({ user }: { user: any }) {
-  const isRealAddress = user?.wallet_address?.startsWith('0x') && user.wallet_address.length === 42;
+  const isRealAddress = user?.walletAddress?.startsWith('0x') && user.walletAddress.length === 42;
   
   const { data: tachiBalance } = useReadContract({
     address: TACHI_CONTRACT,
     abi: ERC20_BALANCE_ABI,
     functionName: 'balanceOf',
-    args: isRealAddress ? [user.wallet_address as `0x${string}`] : undefined,
+    args: isRealAddress ? [user.walletAddress as `0x${string}`] : undefined,
     query: { enabled: isRealAddress },
   });
 
@@ -393,29 +359,29 @@ function ProfileTab({ user }: { user: any }) {
         <div className="flex items-center gap-3">
           <div className="relative">
             <img 
-              src={user.fc_pfp_url || '/default-avatar.png'} 
+              src={user.fcPfpUrl || '/default-avatar.png'} 
               alt="" 
               className="w-16 h-16 rounded-full border-4 border-red-600" 
             />
-            {user.fc_power_badge && (
+            {user.fcPowerBadge && (
               <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
                 ✓
               </div>
             )}
           </div>
           <div>
-            <p className="font-bold text-base">{user.fc_display_name || user.fc_username}</p>
-            <p className="text-xs text-red-400 font-semibold">@{user.fc_username}</p>
-            <p className="text-xs text-gray-500">FID #{user.fc_fid}</p>
+            <p className="font-bold text-base">{user.fcDisplayName || user.fcUsername}</p>
+            <p className="text-xs text-red-400 font-semibold">@{user.fcUsername}</p>
+            <p className="text-xs text-gray-500">FID #{user.fcFid}</p>
           </div>
         </div>
-        {user.fc_bio && (
-          <p className="text-sm text-gray-400 mt-3">{user.fc_bio}</p>
+        {user.fcBio && (
+          <p className="text-sm text-gray-400 mt-3">{user.fcBio}</p>
         )}
-        {user.wallet_address && (
+        {user.walletAddress && (
           <div className="mt-3 pt-3 border-t border-gray-800 flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-blue-500" />
-            <p className="text-xs font-mono text-gray-500">{truncateAddress(user.wallet_address)}</p>
+            <p className="text-xs font-mono text-gray-500">{truncateAddress(user.walletAddress)}</p>
             <span className="ml-auto text-xs bg-blue-950 text-blue-400 px-2 py-0.5 rounded-full">Base</span>
           </div>
         )}
@@ -450,8 +416,8 @@ function ProfileTab({ user }: { user: any }) {
       <div className="bg-gray-900/50 rounded-2xl p-4 border border-gray-800">
         <div className="grid grid-cols-3 gap-2">
           {[
-            { value: user.fc_followers?.toString() || '0', label: 'Followers' },
-            { value: user.fc_following?.toString() || '0', label: 'Following' },
+            { value: user.fcFollowers?.toString() || '0', label: 'Followers' },
+            { value: user.fcFollowing?.toString() || '0', label: 'Following' },
             { value: user.points?.toString() || '0', label: 'Quest XP', highlight: 'text-red-400' },
           ].map(({ value, label, highlight }) => (
             <div key={label} className="text-center p-2 bg-gray-800/50 rounded-xl">
@@ -470,7 +436,7 @@ function ProfileTab({ user }: { user: any }) {
           {[
             { icon: '🔁', label: 'Recaster', earned: user.points >= 100 },
             { icon: '👤', label: 'Follower', earned: user.points >= 150 },
-            { icon: '💎', label: 'Wallet Linked', earned: !!user.wallet_address },
+            { icon: '💎', label: 'Wallet Linked', earned: !!user.walletAddress },
             { icon: '❤️', label: 'Liker', earned: user.points >= 200 },
           ].map((badge) => (
             <div key={badge.label} className={`flex flex-col items-center gap-1 ${!badge.earned ? 'opacity-30' : ''}`}>

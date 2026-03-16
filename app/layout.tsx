@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Providers } from './providers';
+import { AuthGuard } from '@/components/auth-guard';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://tachi-quest.vercel.app';
 
@@ -70,7 +71,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen bg-[#0a0a0f] text-[#F9FAFB] antialiased">
-        <Providers>{children}</Providers>
+        <Providers>
+          <AuthGuard>{children}</AuthGuard>
+        </Providers>
       </body>
     </html>
   );
