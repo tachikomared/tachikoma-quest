@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
-import './globals.css';
-import './mecha-theme.css';
+import './globals.css?v=2';
+import './mecha-theme.css?v=2';
 import { Providers } from './providers';
 import { AuthGuard } from '@/components/auth-guard';
 
