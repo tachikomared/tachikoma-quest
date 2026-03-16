@@ -79,6 +79,8 @@ export async function fetchUserWithScore(fid: number): Promise<NeynarUser | null
     fids: String(fid),
   });
 
+  console.log('[neynar] Fetching user with score for FID:', fid);
+
   const res = await fetch(`${API}/farcaster/user/bulk/?${qs.toString()}`, {
     headers: {
       ...getHeaders(),
@@ -88,11 +90,25 @@ export async function fetchUserWithScore(fid: number): Promise<NeynarUser | null
   });
 
   if (!res.ok) {
+    console.error('[neynar] API error:', res.status, await res.text());
     throw new Error(`Neynar user lookup failed: ${res.status}`);
   }
 
   const data = await res.json();
-  return data.users?.[0] ?? null;
+  const user = data.users?.[0] ?? null;
+  
+  if (user) {
+    console.log('[neynar] Got user:', {
+      fid: user.fid,
+      username: user.username,
+      pfp_url: user.pfp_url?.substring(0, 50) + '...',
+      follower_count: user.follower_count,
+      following_count: user.following_count,
+      power_badge: user.power_badge,
+    });
+  }
+  
+  return user;
 }
 
 export async function verifyFarcasterFollow(viewerFid: number, targetFid: number): Promise<boolean> {
