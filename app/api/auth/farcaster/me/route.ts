@@ -8,10 +8,13 @@ import { signSession, getFullUser, setSession } from '@/lib/auth';
 const quickAuth = createClient();
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
+// Domain must match exactly what's in the farcaster.json manifest
+const DOMAIN = 'tachi-quest.vercel.app';
+
 function getRequestHost(req: Request): string {
-  const forwardedHost = req.headers.get('x-forwarded-host');
-  const host = forwardedHost || req.headers.get('host');
-  return host || new URL(APP_URL).host;
+  // Always use the canonical domain for JWT verification
+  // The JWT is signed for the domain in the manifest
+  return DOMAIN;
 }
 
 async function ensureUser(fid: number, neynarUser: NeynarUser | null): Promise<string> {
@@ -73,6 +76,8 @@ async function ensureUser(fid: number, neynarUser: NeynarUser | null): Promise<s
 async function handleQuickAuth(token: string, req: Request) {
   const domain = getRequestHost(req);
   console.log('[auth] Verifying JWT for domain:', domain);
+  console.log('[auth] Token preview:', token.substring(0, 20) + '...');
+  console.log('[auth] All headers:', Object.fromEntries(req.headers.entries()));
 
   let payload;
   try {
@@ -80,10 +85,12 @@ async function handleQuickAuth(token: string, req: Request) {
       token,
       domain,
     });
+    console.log('[auth] JWT verified successfully');
   } catch (e: any) {
     console.error('[auth] JWT verification failed:', e?.message || e);
+    console.error('[auth] JWT error details:', e);
     return NextResponse.json(
-      { user: null, error: 'jwt_verification_failed' },
+      { user: null, error: 'jwt_verification_failed', details: e?.message },
       { status: 401 }
     );
   }
