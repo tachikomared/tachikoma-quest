@@ -5,16 +5,27 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const rows = await sql`
-    select
+    SELECT 
       u.fc_username,
       u.fc_fid,
-      coalesce(sum(qc.points_awarded), 0)::int as points
-    from users u
-    left join quest_claims qc on qc.user_id = u.id
-    group by u.id, u.fc_username, u.fc_fid
-    order by points desc, u.created_at asc
-    limit 100
+      u.fc_pfp_url,
+      u.fc_display_name,
+      COALESCE(SUM(qc.points_awarded), 0)::int AS points
+    FROM users u
+    LEFT JOIN quest_claims qc ON qc.user_id = u.id
+    GROUP BY u.id, u.fc_username, u.fc_fid, u.fc_pfp_url, u.fc_display_name
+    ORDER BY points DESC, u.created_at ASC
+    LIMIT 100
   `;
 
-  return NextResponse.json({ entries: rows });
+  const entries = rows.map((r, index) => ({
+    rank: index + 1,
+    fid: r.fc_fid,
+    username: r.fc_username,
+    displayName: r.fc_display_name,
+    pfpUrl: r.fc_pfp_url,
+    points: r.points,
+  }));
+
+  return NextResponse.json({ entries });
 }

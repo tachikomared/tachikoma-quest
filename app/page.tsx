@@ -3,464 +3,487 @@
 import { useEffect, useMemo, useState } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { detectMiniApp } from '@/lib/miniapp';
-import { useConnect, useAccount, useSignMessage } from 'wagmi';
+import { useConnect, useAccount, useSignMessage, useReadContract } from 'wagmi';
+import { TACHI_CONTRACT, ERC20_BALANCE_ABI, MOCK_REFERRAL_REWARDS, MOCK_LEADERBOARD } from '@/data/mocks';
 
+type Tab = 'quests' | 'leaderboard' | 'referrals' | 'profile';
 type QuestStatus = 'idle' | 'opened' | 'verifying' | 'verified' | 'failed';
 
-type Quest = {
-  id: string;
-  title: string;
-  description: string;
-  platform: string;
-  action: string;
-  verification: string;
-  points: number;
-  target: Record<string, any>;
-};
-
-type User = {
-  id: string;
-  fc_fid: number;
-  fc_username: string | null;
-  fc_display_name: string | null;
-  fc_pfp_url: string | null;
-  fc_bio: string | null;
-  fc_score: number | null;
-  referral_code: string;
-  points: number;
-};
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-const FARCASTER_APP_URL = process.env.NEXT_PUBLIC_FARCASTER_APP_URL || 'https://warpcast.com/~/mini-apps/launch?url=' + encodeURIComponent(APP_URL);
-
-function useQuestStatuses() {
-  const [statuses, setStatuses] = useState<Record<string, QuestStatus>>({});
-  const setStatus = (id: string, status: QuestStatus) => {
-    setStatuses(s => ({ ...s, [id]: status }));
-  };
-  return { statuses, setStatus };
-}
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: 'quests', label: 'Quests', icon: '⚡' },
+  { id: 'leaderboard', label: 'Board', icon: '🏆' },
+  { id: 'referrals', label: 'Refer', icon: '🔗' },
+  { id: 'profile', label: 'Me', icon: '👤' },
+];
 
 export default function HomePage() {
-  const [quests, setQuests] = useState<Quest[]>([]);
-  const [user, setUser] = useState<User | null>(null);
-  const [refCode, setRefCode] = useState('');
+  const [activeTab, setActiveTab] = useState<Tab>('quests');
+  const [user, setUser] = useState<any>(null);
   const [isMiniApp, setIsMiniApp] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const { statuses, setStatus } = useQuestStatuses();
-  
-  const { connect, connectors } = useConnect();
-  const { address, isConnected } = useAccount();
-  const { signMessageAsync } = useSignMessage();
-  const [walletState, setWalletState] = useState<'not_connected' | 'connecting' | 'connected' | 'linking' | 'linked' | 'failed'>('not_connected');
 
   useEffect(() => {
-    fetch('/api/quests')
-      .then(r => r.json())
-      .then(d => setQuests(d.quests ?? []));
-
-    const params = new URLSearchParams(window.location.search);
-    const ref = params.get('ref');
-    if (ref) setRefCode(ref);
-
     (async () => {
       try {
         const inMiniApp = await detectMiniApp();
-        console.log('[miniapp] isInMiniApp', inMiniApp);
         setIsMiniApp(inMiniApp);
 
         if (inMiniApp) {
           const res = await sdk.quickAuth.fetch('/api/auth/farcaster/me');
-          console.log('[miniapp] quickAuth status', res.status);
           if (res.ok) {
             const data = await res.json();
-            setUser(data.user ?? null);
-          } else {
-            console.error('[miniapp] auth failed', res.status);
+            setUser(data.user);
           }
           await sdk.actions.ready();
         } else {
           const res = await fetch('/api/me', { credentials: 'include' });
-          console.log('[web] /api/me status', res.status);
           if (res.ok) {
             const data = await res.json();
-            setUser(data.user ?? null);
+            setUser(data.user);
           }
         }
       } catch (e) {
-        console.error('Auth check failed:', e);
+        console.error('Auth failed:', e);
       } finally {
         setAuthChecked(true);
       }
     })();
   }, []);
 
-  useEffect(() => {
-    if (!connectors?.length) return;
-    console.log('[wallet] connectors', connectors.map((c) => c.id));
-  }, [connectors]);
-
-  const shareLink = useMemo(() => {
-    if (!user?.referral_code) return '';
-    return `${window.location.origin}?ref=${user.referral_code}`;
-  }, [user?.referral_code]);
-
-  async function refreshUser() {
-    const res = await fetch('/api/me', { credentials: 'include' });
-    if (res.ok) {
-      const data = await res.json();
-      setUser(data.user ?? null);
-    }
-  }
-
-  async function handleMiniAppAuth() {
-    try {
-      const res = await sdk.quickAuth.fetch('/api/auth/farcaster/me');
-      console.log('[miniapp] quickAuth status', res.status);
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data.user ?? null);
-        await sdk.actions.ready();
-      } else {
-        console.error('[miniapp] auth failed', res.status);
-      }
-    } catch (e) {
-      console.error('Mini app auth failed:', e);
-    }
-  }
-
-  async function openQuest(quest: Quest) {
-    setStatus(quest.id, 'opened');
-    
-    if (quest.platform === 'x' && quest.target.url) {
-      if (isMiniApp) {
-        await sdk.actions.openUrl({ url: quest.target.url });
-      } else {
-        window.open(quest.target.url, '_blank');
-      }
-      return;
-    }
-
-    if (quest.platform === 'farcaster') {
-      if (quest.action === 'follow_user' && quest.target.targetFid) {
-        if (isMiniApp) {
-          await sdk.actions.viewProfile({ fid: Number(quest.target.targetFid) });
-        } else {
-          window.open(`https://warpcast.com/~/profiles/${quest.target.targetFid}`, '_blank');
-        }
-      } else if (quest.target.castHash) {
-        if (isMiniApp) {
-          await sdk.actions.viewCast({ hash: quest.target.castHash });
-        } else {
-          const castUrl = quest.target.castUrl || `https://warpcast.com/~/casts/${quest.target.castHash}`;
-          window.open(castUrl, '_blank');
-        }
-      } else if (quest.target.castUrl) {
-        if (isMiniApp) {
-          await sdk.actions.openUrl({ url: quest.target.castUrl });
-        } else {
-          window.open(quest.target.castUrl, '_blank');
-        }
-      }
-    }
-  }
-
-  async function verifyQuest(quest: Quest) {
-    if (!user) return;
-    if (quest.platform === 'x' || quest.verification === 'wallet_signature') {
-      setStatus(quest.id, 'failed');
-      return;
-    }
-    setStatus(quest.id, 'verifying');
-    try {
-      const res = await fetch(`/api/quests/${quest.id}/verify`, { method: 'POST' });
-      const data = await res.json();
-      if (data.verified) {
-        setStatus(quest.id, 'verified');
-        await refreshUser();
-      } else {
-        setStatus(quest.id, 'failed');
-      }
-    } catch (e) {
-      setStatus(quest.id, 'failed');
-    }
-  }
-
-  async function connectWallet(quest: Quest) {
-    if (!user || !address) return;
-    try {
-      setWalletState('linking');
-      const message = `Link wallet to TACHI Quest: ${user.fc_fid}`;
-      const signature = await signMessageAsync({ message });
-      const res = await fetch('/api/wallet/link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, message, signature }),
-      });
-      if (res.ok) {
-        setStatus(quest.id, 'verified');
-        await refreshUser();
-        setWalletState('linked');
-      } else {
-        const data = await res.json().catch(() => ({}));
-        console.error('[wallet] link failed', data);
-        setWalletState('failed');
-      }
-    } catch (e) {
-      console.error('Wallet connect failed:', e);
-      setWalletState('failed');
-    }
-  }
-
-  async function attachReferral() {
-    if (!refCode || !user) return;
-    const res = await fetch('/api/referrals/attach', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: refCode }),
-    });
-    if (res.ok) {
-      setRefCode('');
-      const url = new URL(window.location.href);
-      url.searchParams.delete('ref');
-      window.history.replaceState({}, '', url);
-    }
-  }
-
-  async function copyReferral() {
-    if (!shareLink) return;
-    try {
-      await navigator.clipboard.writeText(shareLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch (e) {
-      console.error('Copy failed', e);
-    }
-  }
-
-  async function shareReferral() {
-    if (!shareLink) return;
-    if (isMiniApp) {
-      try {
-        await sdk.actions.composeCast({
-          text: `Join TACHI Quest and earn points. Use my code: ${user?.referral_code}\n${shareLink}`,
-        });
-      } catch (e) {
-        console.error('Compose cast failed', e);
-      }
-      return;
-    }
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'TACHI Quest',
-          text: `Join TACHI Quest and earn points. Use my code: ${user?.referral_code}`,
-          url: shareLink,
-        });
-        return;
-      } catch {
-        // ignore
-      }
-    }
-
-    await copyReferral();
-  }
-
-  function getStatusBadge(status: QuestStatus) {
-    const styles: Record<QuestStatus, string> = {
-      idle: 'bg-white/10 text-white/60',
-      opened: 'bg-yellow-500/20 text-yellow-400',
-      verifying: 'bg-blue-500/20 text-blue-400',
-      verified: 'bg-green-500/20 text-green-400',
-      failed: 'bg-red-500/20 text-red-400',
-    };
-    return <span className={`px-2 py-1 rounded text-xs ${styles[status]}`}>{status}</span>;
-  }
-
   if (!authChecked) {
     return (
-      <main className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-white/70">Loading...</div>
-      </main>
+      <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
+          <div className="text-gray-400 text-sm">Loading TACHI Quest...</div>
+        </div>
+      </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-black text-white p-6">
-      <div className="max-w-6xl mx-auto">
-        <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
+    <div className="min-h-screen bg-[#0a0a0f] text-gray-100">
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-[#0a0a0f]/95 backdrop-blur-xl border-b border-red-900/30">
+        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">TACHI Quest</h1>
-            <p className="text-white/60 mt-2">Complete quests for $TACHI airdrop eligibility</p>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-red-500 to-red-400 bg-clip-text text-transparent">
+              TACHI Quest
+            </h1>
+            <p className="text-xs text-gray-500">Complete quests · Earn XP · Stack $TACHI</p>
           </div>
-          <div className="flex items-center gap-3">
-            {!user && isMiniApp && (
-              <button onClick={handleMiniAppAuth} className="bg-purple-600 hover:bg-purple-700 px-5 py-2 rounded-xl font-semibold">
-                Connect with Farcaster
-              </button>
-            )}
-            {!user && !isMiniApp && (
-              <a href={FARCASTER_APP_URL} className="bg-white/10 hover:bg-white/15 px-5 py-2 rounded-xl font-semibold">
-                Open in Farcaster
-              </a>
-            )}
-            {user && (
-              <div className="text-right">
-                <div className="text-sm text-white/60">@{user.fc_username ?? 'anon'}</div>
-                <div className="text-cyan-400 font-semibold">{user.points} points</div>
-              </div>
-            )}
-          </div>
-        </header>
+          {user && (
+            <div className="flex items-center gap-2 bg-gray-900/50 rounded-full px-3 py-1.5 border border-red-900/30">
+              <img src={user.fc_pfp_url || '/default-avatar.png'} alt="" className="w-6 h-6 rounded-full" />
+              <span className="text-xs font-medium text-red-400">{user.points || 0} XP</span>
+            </div>
+          )}
+        </div>
 
-        {user && (
-          <div className="mb-6 p-4 bg-white/5 rounded-2xl border border-white/10 flex gap-4">
-            {user.fc_pfp_url && (
-              <img
-                src={user.fc_pfp_url}
-                alt={user.fc_display_name ?? user.fc_username ?? 'Profile'}
-                className="w-16 h-16 rounded-full"
-              />
-            )}
+        {/* Tab Bar */}
+        <div className="flex border-b border-gray-800">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 py-3 text-xs font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'text-red-400 border-b-2 border-red-500'
+                  : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              <span className="mr-1">{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-lg mx-auto px-4 py-4 pb-24">
+        {activeTab === 'quests' && <QuestsTab user={user} isMiniApp={isMiniApp} />}
+        {activeTab === 'leaderboard' && <LeaderboardTab user={user} />}
+        {activeTab === 'referrals' && <ReferralsTab user={user} isMiniApp={isMiniApp} />}
+        {activeTab === 'profile' && <ProfileTab user={user} />}
+      </main>
+    </div>
+  );
+}
+
+// Quests Tab Component
+function QuestsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
+  const [quests, setQuests] = useState<any[]>([]);
+  const [statuses, setStatuses] = useState<Record<string, QuestStatus>>({});
+
+  useEffect(() => {
+    fetch('/api/quests').then(r => r.json()).then(d => setQuests(d.quests || []));
+  }, []);
+
+  const setStatus = (id: string, status: QuestStatus) => {
+    setStatuses(s => ({ ...s, [id]: status }));
+  };
+
+  const openQuest = async (quest: any) => {
+    setStatus(quest.id, 'opened');
+    
+    if (quest.platform === 'x' && quest.target?.url) {
+      if (isMiniApp) await sdk.actions.openUrl({ url: quest.target.url });
+      else window.open(quest.target.url, '_blank');
+      return;
+    }
+
+    if (quest.platform === 'farcaster') {
+      if (quest.action === 'follow_user' && quest.target?.targetFid) {
+        if (isMiniApp) await sdk.actions.viewProfile({ fid: quest.target.targetFid });
+        else window.open(`https://warpcast.com/~/profiles/${quest.target.targetFid}`, '_blank');
+      } else if (quest.target?.castHash) {
+        if (isMiniApp) await sdk.actions.viewCast({ hash: quest.target.castHash });
+        else window.open(quest.target.castUrl || `https://warpcast.com/~/casts/${quest.target.castHash}`, '_blank');
+      }
+    }
+  };
+
+  const verifyQuest = async (quest: any) => {
+    if (!user || quest.platform === 'x' || quest.verification === 'wallet_signature') return;
+    setStatus(quest.id, 'verifying');
+    try {
+      const res = await fetch(`/api/quests/${quest.id}/verify`, { method: 'POST' });
+      const data = await res.json();
+      if (data.verified) setStatus(quest.id, 'verified');
+      else setStatus(quest.id, 'failed');
+    } catch {
+      setStatus(quest.id, 'failed');
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Progress Card */}
+      {user && (
+        <div className="bg-gradient-to-br from-red-950/50 to-gray-900 rounded-2xl p-4 border border-red-900/30">
+          <div className="flex items-center gap-3 mb-3">
+            <img src={user.fc_pfp_url} alt="" className="w-10 h-10 rounded-full border-2 border-red-600" />
             <div>
-              <div className="text-lg font-semibold">{user.fc_display_name ?? user.fc_username ?? 'Anon'}</div>
-              <div className="text-sm text-white/60">@{user.fc_username ?? 'anon'} · FID {user.fc_fid}</div>
-              {user.fc_bio && <div className="text-xs text-white/50 mt-1">{user.fc_bio}</div>}
-              {user.fc_score && <div className="text-xs text-white/40 mt-1">Score: {user.fc_score}</div>}
+              <p className="font-bold text-sm">@{user.fc_username}</p>
+              <p className="text-xs text-gray-500">FID #{user.fc_fid}</p>
+            </div>
+            <div className="ml-auto text-right">
+              <p className="font-bold text-red-400 text-lg">{user.points || 0} XP</p>
+              <p className="text-xs text-gray-500">Keep questing!</p>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        <div className="grid gap-6 md:grid-cols-[260px_1fr]">
-          <aside className="space-y-4">
-            <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-              <div className="text-sm text-white/60 mb-1">Status</div>
-              {user ? (
-                <div>
-                  <div className="text-lg font-semibold">Connected</div>
-                  <div className="text-sm text-white/50">FID {user.fc_fid}</div>
+      {/* Quest List */}
+      <p className="text-xs font-bold text-red-500 uppercase tracking-widest">Active Quests 🦀</p>
+      
+      {quests.map((quest) => {
+        const status = statuses[quest.id] || 'idle';
+        return (
+          <div key={quest.id} className="bg-gray-900/50 rounded-2xl p-4 border border-gray-800 hover:border-red-900/50 transition-colors">
+            <div className="flex items-start gap-3">
+              <div className="text-2xl">{quest.icon || '⚡'}</div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="font-bold text-sm">{quest.title}</p>
+                  {status === 'verified' && <span className="text-xs bg-green-950 text-green-400 px-2 py-0.5 rounded-full">✓ Done</span>}
                 </div>
-              ) : (
-                <div className="text-sm text-white/50">Connect to verify quests.</div>
+                <p className="text-xs text-gray-500 mt-0.5">{quest.description}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-xs font-bold text-red-400">+{quest.points} XP</span>
+                  <span className="text-xs text-gray-600">·</span>
+                  <span className="text-xs text-purple-400">🦀 future drop</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 mt-3">
+              {(quest.platform === 'farcaster' || quest.platform === 'x') && (
+                <button 
+                  onClick={() => openQuest(quest)}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-white text-xs font-bold py-2.5 rounded-xl transition-colors"
+                >
+                  {quest.platform === 'x' ? 'Open on X ↗' : 'Go →'}
+                </button>
+              )}
+              {quest.platform === 'farcaster' && status !== 'verified' && (
+                <button 
+                  onClick={() => verifyQuest(quest)}
+                  disabled={status === 'verifying'}
+                  className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold py-2.5 rounded-xl transition-colors"
+                >
+                  {status === 'verifying' ? 'Verifying...' : 'Verify'}
+                </button>
               )}
             </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
-            {user && (
-              <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                <div className="text-sm text-white/60 mb-1">Referral Code</div>
-                <div className="font-mono text-lg">{user.referral_code}</div>
-                <div className="text-xs text-white/40 mt-2 truncate">{shareLink}</div>
-                <div className="mt-3 flex gap-2">
-                  <button
-                    onClick={copyReferral}
-                    className="flex-1 rounded-lg bg-white/10 hover:bg-white/15 py-2 text-xs font-medium"
-                  >
-                    {copied ? 'Copied!' : 'Copy Link'}
-                  </button>
-                  <button
-                    onClick={shareReferral}
-                    className="flex-1 rounded-lg bg-purple-600 hover:bg-purple-700 py-2 text-xs font-medium"
-                  >
-                    Share
-                  </button>
-                </div>
-              </div>
-            )}
+// Leaderboard Tab
+function LeaderboardTab({ user }: { user: any }) {
+  const [entries, setEntries] = useState<any[]>([]);
 
-            {refCode && user && (
-              <div className="p-4 bg-purple-900/30 border border-purple-500/30 rounded-2xl">
-                <p className="text-sm mb-2">Referred by: <span className="font-mono">{refCode}</span></p>
-                <button onClick={attachReferral} className="w-full bg-purple-600 hover:bg-purple-700 text-sm font-medium py-2 rounded-lg">
-                  Attach Code
-                </button>
-              </div>
-            )}
-          </aside>
+  useEffect(() => {
+    fetch('/api/leaderboard').then(r => r.json()).then(d => setEntries(d.entries || MOCK_LEADERBOARD));
+  }, []);
 
-          <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Quests</h2>
-              <div className="text-sm text-white/50">{quests.length} active</div>
+  return (
+    <div className="space-y-3">
+      <p className="text-xs font-bold text-red-500 uppercase tracking-widest">Top Questers 🏆</p>
+      
+      <div className="bg-gray-900/50 rounded-2xl border border-gray-800 overflow-hidden">
+        {entries.slice(0, 20).map((entry, i) => (
+          <div 
+            key={i} 
+            className={`flex items-center gap-3 p-3 ${i !== 0 ? 'border-t border-gray-800' : ''} ${
+              entry.username === user?.fc_username ? 'bg-red-950/30' : ''
+            }`}
+          >
+            <span className="w-6 text-center text-sm font-bold text-gray-500">
+              {i < 3 ? ['🥇', '🥈', '🥉'][i] : `#${i + 1}`}
+            </span>
+            <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold">
+              {entry.username?.[0]?.toUpperCase() || '?'}
             </div>
-            <div className="grid gap-4">
-              {quests.map((quest) => {
-                const status = statuses[quest.id] ?? 'idle';
-                const isWallet = quest.verification === 'wallet_signature';
-                const isX = quest.platform === 'x';
-                const isFarcaster = quest.platform === 'farcaster';
-                const showVerify = isFarcaster && user;
-                const farcasterDisabled = !user && isFarcaster;
-
-                return (
-                  <div key={quest.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="text-base font-semibold">{quest.title}</h3>
-                        <p className="mt-1 text-sm text-white/60">{quest.description}</p>
-                      </div>
-                      <div className="text-cyan-400 font-semibold whitespace-nowrap">+{quest.points}</div>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="text-xs text-white/40 uppercase">{quest.platform}</span>
-                      {getStatusBadge(status)}
-                    </div>
-
-                    {farcasterDisabled && (
-                      <div className="mt-3 text-xs text-white/50">
-                        Connect with Farcaster to verify this quest.
-                      </div>
-                    )}
-
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      {(isFarcaster || isX) && (
-                        <button onClick={() => openQuest(quest)} className="rounded-xl px-4 py-2 bg-white/10 hover:bg-white/15">
-                          {isX ? 'Open on X' : 'Open task'}
-                        </button>
-                      )}
-                      {showVerify && (
-                        <button
-                          onClick={() => verifyQuest(quest)}
-                          disabled={status === 'verifying'}
-                          className="rounded-xl px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
-                        >
-                          {status === 'verifying' ? 'Verifying...' : 'Verify'}
-                        </button>
-                      )}
-                      {isWallet && (
-                        <button
-                          onClick={() => {
-                            const connector = isMiniApp ? connectors[0] : connectors.find((c) => c.id !== 'farcaster');
-                            if (!connector) {
-                              console.error('[wallet] missing connector');
-                              return;
-                            }
-                            setWalletState('connecting');
-                            connect({ connector });
-                          }}
-                          disabled={status === 'verified' || isConnected}
-                          className="rounded-xl px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
-                        >
-                          {walletState === 'connecting' ? 'Connecting...' : isConnected ? 'Connected' : 'Connect Wallet'}
-                        </button>
-                      )}
-                      {isWallet && isConnected && status !== 'verified' && (
-                        <button
-                          onClick={() => connectWallet(quest)}
-                          className="rounded-xl px-4 py-2 bg-green-600 hover:bg-green-700"
-                        >
-                          {walletState === 'linking' ? 'Linking...' : walletState === 'linked' ? 'Linked' : 'Link Wallet'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="flex-1">
+              <p className="text-sm font-semibold">@{entry.username || 'anon'}</p>
             </div>
-          </section>
+            <span className="text-sm font-bold text-red-400">{entry.xp} XP</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Referrals Tab
+function ReferralsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const referralCode = user?.referral_code || 'NO-CODE';
+  const referralLink = `${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${referralCode}`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(referralCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = async () => {
+    const text = `Join TACHI Quests — complete quests, earn XP & stack $TACHI! 🦀 Use my code: ${referralCode}`;
+    if (isMiniApp) {
+      await sdk.actions.composeCast({ text });
+    } else if (navigator.share) {
+      navigator.share({ title: 'TACHI Quest', text, url: referralLink });
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Stats */}
+      <div className="bg-gray-900/50 rounded-2xl p-4 border border-gray-800">
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="bg-gray-800/50 rounded-xl p-3">
+            <p className="font-bold text-xl text-red-400">0</p>
+            <p className="text-xs text-gray-500">Invited</p>
+          </div>
+          <div className="bg-gray-800/50 rounded-xl p-3">
+            <p className="font-bold text-xl text-green-400">0</p>
+            <p className="text-xs text-gray-500">Active</p>
+          </div>
+          <div className="bg-gray-800/50 rounded-xl p-3">
+            <p className="font-bold text-xl text-red-400">0</p>
+            <p className="text-xs text-gray-500">XP Earned</p>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 text-center mt-3">
+          Earn <span className="text-red-400 font-bold">200 XP</span> per active referral
+        </p>
+      </div>
+
+      {/* Invite Code */}
+      <p className="text-xs font-bold text-red-500 uppercase tracking-widest">Your Invite Code 🔗</p>
+      
+      <div className="bg-gray-900/50 rounded-2xl p-4 border border-gray-800">
+        <div className="bg-gray-800/50 rounded-xl px-4 py-3 mb-3">
+          <p className="text-red-400 font-mono text-center font-bold tracking-wider">{referralCode}</p>
+        </div>
+        <div className="flex gap-2">
+          <button 
+            onClick={handleCopy}
+            className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-3 rounded-xl transition-colors"
+          >
+            {copied ? '✓ Copied!' : '📋 Copy Code'}
+          </button>
+          <button 
+            onClick={handleShare}
+            className="flex-1 bg-gray-800 hover:bg-gray-700 text-white text-xs font-bold py-3 rounded-xl transition-colors"
+          >
+            Share ↗
+          </button>
         </div>
       </div>
-    </main>
+
+      {/* Milestones */}
+      <p className="text-xs font-bold text-red-500 uppercase tracking-widest">Milestones 🎯</p>
+      
+      {MOCK_REFERRAL_REWARDS.map((reward) => (
+        <div key={reward.milestone} className="bg-gray-900/50 rounded-2xl p-4 border border-gray-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-lg border border-gray-700">
+              🔒
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-sm text-gray-400">{reward.label}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-xs font-semibold text-red-400">+{reward.xp} XP</span>
+                <span className="text-xs text-gray-600">·</span>
+                <span className="text-xs text-purple-400">🦀 {reward.tachi} $TACHI</span>
+              </div>
+            </div>
+            <span className="text-xs text-gray-500">0/{reward.milestone}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Profile Tab
+function ProfileTab({ user }: { user: any }) {
+  const isRealAddress = user?.wallet_address?.startsWith('0x') && user.wallet_address.length === 42;
+  
+  const { data: tachiBalance } = useReadContract({
+    address: TACHI_CONTRACT,
+    abi: ERC20_BALANCE_ABI,
+    functionName: 'balanceOf',
+    args: isRealAddress ? [user.wallet_address as `0x${string}`] : undefined,
+    query: { enabled: isRealAddress },
+  });
+
+  const formatBalance = (raw: bigint | undefined) => {
+    if (raw === undefined) return '—';
+    const value = Number(raw) / 1e18;
+    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
+    if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
+    return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  };
+
+  const truncateAddress = (addr: string) => {
+    if (addr?.startsWith('0x') && addr.length >= 10) return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+    return addr;
+  };
+
+  if (!user) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">Connect your Farcaster account to view your profile</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Identity Card */}
+      <div className="bg-gray-900/50 rounded-2xl p-4 border border-gray-800">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <img 
+              src={user.fc_pfp_url || '/default-avatar.png'} 
+              alt="" 
+              className="w-16 h-16 rounded-full border-4 border-red-600" 
+            />
+            {user.fc_power_badge && (
+              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                ✓
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="font-bold text-base">{user.fc_display_name || user.fc_username}</p>
+            <p className="text-xs text-red-400 font-semibold">@{user.fc_username}</p>
+            <p className="text-xs text-gray-500">FID #{user.fc_fid}</p>
+          </div>
+        </div>
+        {user.fc_bio && (
+          <p className="text-sm text-gray-400 mt-3">{user.fc_bio}</p>
+        )}
+        {user.wallet_address && (
+          <div className="mt-3 pt-3 border-t border-gray-800 flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-blue-500" />
+            <p className="text-xs font-mono text-gray-500">{truncateAddress(user.wallet_address)}</p>
+            <span className="ml-auto text-xs bg-blue-950 text-blue-400 px-2 py-0.5 rounded-full">Base</span>
+          </div>
+        )}
+      </div>
+
+      {/* $TACHI Balance */}
+      <div className="bg-gradient-to-br from-yellow-950/30 to-gray-900 rounded-2xl p-4 border border-yellow-900/30">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-yellow-950 border border-yellow-800 flex items-center justify-center text-xl">
+              🪙
+            </div>
+            <div>
+              <p className="font-bold text-sm">$TACHI Balance</p>
+              <p className="text-xs text-gray-500 font-mono">{truncateAddress(TACHI_CONTRACT)} · Base</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="font-bold text-xl text-yellow-400">{formatBalance(tachiBalance as bigint)}</p>
+            <p className="text-xs text-gray-500">$TACHI</p>
+          </div>
+        </div>
+        <div className="mt-3 pt-3 border-t border-gray-800 flex justify-between items-center">
+          <p className="text-xs text-gray-500">Quest XP earned</p>
+          <p className="text-xs font-semibold text-red-400">🦀 {user.points || 0} XP</p>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <p className="text-xs font-bold text-red-500 uppercase tracking-widest">Stats 📊</p>
+      
+      <div className="bg-gray-900/50 rounded-2xl p-4 border border-gray-800">
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { value: user.fc_followers?.toString() || '0', label: 'Followers' },
+            { value: user.fc_following?.toString() || '0', label: 'Following' },
+            { value: user.points?.toString() || '0', label: 'Quest XP', highlight: 'text-red-400' },
+          ].map(({ value, label, highlight }) => (
+            <div key={label} className="text-center p-2 bg-gray-800/50 rounded-xl">
+              <p className={`font-bold text-base ${highlight || 'text-white'}`}>{value}</p>
+              <p className="text-xs text-gray-500">{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Badges */}
+      <p className="text-xs font-bold text-red-500 uppercase tracking-widest">Badges 🏅</p>
+      
+      <div className="bg-gray-900/50 rounded-2xl p-4 border border-gray-800">
+        <div className="flex gap-3 flex-wrap">
+          {[
+            { icon: '🔁', label: 'Recaster', earned: user.points >= 100 },
+            { icon: '👤', label: 'Follower', earned: user.points >= 150 },
+            { icon: '💎', label: 'Wallet Linked', earned: !!user.wallet_address },
+            { icon: '❤️', label: 'Liker', earned: user.points >= 200 },
+          ].map((badge) => (
+            <div key={badge.label} className={`flex flex-col items-center gap-1 ${!badge.earned ? 'opacity-30' : ''}`}>
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl border ${
+                badge.earned ? 'bg-red-950 border-red-800' : 'bg-gray-800 border-gray-700'
+              }`}>
+                {badge.icon}
+              </div>
+              <p className="text-xs text-gray-500">{badge.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

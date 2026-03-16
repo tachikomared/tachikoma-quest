@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
+import { jwtVerify, SignJWT } from 'jose';
 import { sql } from '@/lib/db';
 
 const JWT_SECRET = new TextEncoder().encode(
@@ -12,13 +12,38 @@ export type CurrentUser = {
   username: string | null;
 };
 
-async function verifySession(token: string): Promise<{ fid: number; username: string | null; userId: string } | null> {
+export type FullUser = {
+  id: string;
+  fcFid: number;
+  fcUsername: string | null;
+  fcDisplayName: string | null;
+  fcPfpUrl: string | null;
+  fcBio: string | null;
+  fcScore: number | null;
+  fcFollowers: number;
+  fcFollowing: number;
+  fcPowerBadge: boolean;
+  referralCode: string;
+  referredByCode: string | null;
+  walletAddress: string | null;
+  points: number;
+};
+
+async function verifySessionToken(token: string): Promise<{ fid: number; username: string | null; userId: string } | null> {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
     return payload as { fid: number; username: string | null; userId: string };
   } catch {
     return null;
   }
+}
+
+export async function signSession(payload: { fid: number; username: string | null; userId: string }): Promise<string> {
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .sign(JWT_SECRET);
 }
 
 export async function requireCurrentUser(): Promise<CurrentUser> {
@@ -29,17 +54,17 @@ export async function requireCurrentUser(): Promise<CurrentUser> {
     throw new Error('Unauthorized');
   }
 
-  const session = await verifySession(sessionCookie.value);
+  const session = await verifySessionToken(sessionCookie.value);
   if (!session?.fid) {
     throw new Error('Invalid session');
   }
 
   // Verify user exists in DB
   const rows = await sql`
-    select id, fc_fid, fc_username
-    from users
-    where fc_fid = ${session.fid}
-    limit 1
+    SELECT id, fc_fid, fc_username
+    FROM users
+    WHERE fc_fid = ${session.fid}
+    LIMIT 1
   `;
 
   if (rows.length) {
@@ -50,11 +75,11 @@ export async function requireCurrentUser(): Promise<CurrentUser> {
     };
   }
 
-  // Create new user
+  // Create new user if not exists
   const result = await sql`
-    insert into users (fc_fid, fc_username, referral_code)
-    values (${session.fid}, ${session.username ?? null}, encode(gen_random_bytes(4), 'hex'))
-    returning id, fc_fid, fc_username
+    INSERT INTO users (fc_fid, fc_username, referral_code)
+    VALUES (${session.fid}, ${session.username ?? null}, encode(gen_random_bytes(4), 'hex'))
+    RETURNING id, fc_fid, fc_username
   `;
 
   return {
@@ -70,4 +95,63 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   } catch {
     return null;
   }
+}
+
+export async function getFullUser(fid: number): Promise<FullUser | null> {
+  const rows = await sql`
+    SELECT 
+      u.id,
+      u.fc_fid,
+      u.fc_username,
+      u.fc_display_name,
+      u.fc_pfp_url,
+      u.fc_bio,
+      u.fc_score,
+      u.fc_followers,
+      u.fc_following,
+      u.fc_power_badge,
+      u.referral_code,
+      u.referred_by_code,
+      u.wallet_address,
+      COALESCE(SUM(qc.points_awarded), 0)::int AS points
+    FROM users u
+    LEFT JOIN quest_claims qc ON qc.user_id = u.id
+    WHERE u.fc_fid = ${fid}
+    GROUP BY u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, 
+             u.fc_bio, u.fc_score, u.fc_followers, u.fc_following, u.fc_power_badge,
+             u.referral_code, u.referred_by_code, u.wallet_address
+    LIMIT 1
+  `;
+
+  if (!rows.length) return null;
+
+  const r = rows[0];
+  return {
+    id: r.id,
+    fcFid: r.fc_fid,
+    fcUsername: r.fc_username,
+    fcDisplayName: r.fc_display_name,
+    fcPfpUrl: r.fc_pfp_url,
+    fcBio: r.fc_bio,
+    fcScore: r.fc_score ? Number(r.fc_score) : null,
+    fcFollowers: r.fc_followers || 0,
+    fcFollowing: r.fc_following || 0,
+    fcPowerBadge: r.fc_power_badge || false,
+    referralCode: r.referral_code,
+    referredByCode: r.referred_by_code,
+    walletAddress: r.wallet_address,
+    points: r.points || 0,
+  };
+}
+
+export async function setSession(fid: number, username: string | null, userId: string): Promise<void> {
+  const token = await signSession({ fid, username, userId });
+  const cookieStore = await cookies();
+  cookieStore.set('session', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 7,
+    path: '/',
+  });
 }

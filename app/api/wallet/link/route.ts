@@ -5,60 +5,112 @@ import { sql } from '@/lib/db';
 import { requireCurrentUser } from '@/lib/auth';
 import { getQuest } from '@/lib/quests';
 
-const Body = z.object({
-  address: z.string(),
-  message: z.string(),
-  signature: z.string(),
+const BodySchema = z.object({
+  address: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address'),
+  message: z.string().min(1, 'Message required'),
+  signature: z.string().regex(/^0x[a-fA-F0-9]{130}$/, 'Invalid signature'),
 });
 
 export async function POST(req: Request) {
-  const current = await requireCurrentUser();
-  const body = Body.parse(await req.json());
-
-  const valid = await verifyMessage({
-    address: body.address as `0x${string}`,
-    message: body.message,
-    signature: body.signature as `0x${string}`,
-  });
-
-  if (!valid) {
-    return NextResponse.json({ ok: false, error: 'Invalid signature' }, { status: 400 });
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: 'Invalid JSON body' },
+      { status: 400 }
+    );
   }
 
+  // Validate body
+  const parseResult = BodySchema.safeParse(body);
+  if (!parseResult.success) {
+    return NextResponse.json(
+      { ok: false, error: parseResult.error.errors[0].message },
+      { status: 400 }
+    );
+  }
+
+  const { address, message, signature } = parseResult.data;
+
+  // Verify current user
+  const current = await requireCurrentUser();
+
+  // Verify signature
+  let valid = false;
+  try {
+    valid = await verifyMessage({
+      address: address as `0x${string}`,
+      message,
+      signature: signature as `0x${string}`,
+    });
+  } catch (e) {
+    console.error('[wallet] Signature verification error:', e);
+  }
+
+  if (!valid) {
+    return NextResponse.json(
+      { ok: false, error: 'Invalid signature' },
+      { status: 400 }
+    );
+  }
+
+  // Verify message contains FID
+  if (!message.includes(String(current.fid))) {
+    return NextResponse.json(
+      { ok: false, error: 'Invalid message - FID mismatch' },
+      { status: 400 }
+    );
+  }
+
+  // Get user ID
   const userRows = await sql`
-    select id
-    from users
-    where fc_fid = ${current.fid}
-    limit 1
+    SELECT id FROM users WHERE fc_fid = ${current.fid} LIMIT 1
   `;
 
   if (!userRows.length) {
-    return NextResponse.json({ ok: false, error: 'User not synced' }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, error: 'User not found' },
+      { status: 401 }
+    );
   }
 
   const userId = userRows[0].id;
+  const addressLower = address.toLowerCase();
 
+  // Insert/update wallet
   await sql`
-    insert into wallets (user_id, address, chain, verified)
-    values (${userId}, ${body.address.toLowerCase()}, 'base', true)
-    on conflict (address) do update set
-      user_id = excluded.user_id,
+    INSERT INTO wallets (user_id, address, chain, verified)
+    VALUES (${userId}, ${addressLower}, 'base', true)
+    ON CONFLICT (address) DO UPDATE SET
+      user_id = EXCLUDED.user_id,
       verified = true
   `;
 
-  const walletQuest = getQuest('wallet-link');
-
+  // Update user's primary wallet
   await sql`
-    insert into quest_claims (user_id, quest_id, status, proof, points_awarded)
-    values (
-      ${userId},
-      'wallet-link',
-      'verified',
-      ${JSON.stringify({ address: body.address.toLowerCase() })}::jsonb,
-      ${walletQuest?.points ?? 0}
-    )
-    on conflict (user_id, quest_id) do nothing
+    UPDATE users SET wallet_address = ${addressLower} WHERE id = ${userId}
   `;
 
-  return NextResponse.json({ ok: true, questId: 'wallet-link', pointsAwarded: walletQuest?.points ?? 0 });
+  // Award quest points if wallet-link quest exists
+  const walletQuest = getQuest('wallet-link');
+  if (walletQuest) {
+    await sql`
+      INSERT INTO quest_claims (user_id, quest_id, status, proof, points_awarded)
+      VALUES (
+        ${userId},
+        'wallet-link',
+        'verified',
+        ${JSON.stringify({ address: addressLower, signature })}::jsonb,
+        ${walletQuest.points}
+      )
+      ON CONFLICT (user_id, quest_id) DO NOTHING
+    `;
+  }
+
+  return NextResponse.json({
+    ok: true,
+    questId: 'wallet-link',
+    pointsAwarded: walletQuest?.points ?? 0,
+  });
 }

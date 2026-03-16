@@ -3,51 +3,87 @@ import { z } from 'zod';
 import { sql } from '@/lib/db';
 import { requireCurrentUser } from '@/lib/auth';
 
-const Body = z.object({
-  code: z.string().min(4).max(64),
+const BodySchema = z.object({
+  code: z.string().min(3).max(64),
 });
 
 export async function POST(req: Request) {
-  const current = await requireCurrentUser();
-  const body = Body.parse(await req.json());
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: 'Invalid JSON body' },
+      { status: 400 }
+    );
+  }
 
-  const rows = await sql`
-    select id, referral_code, referred_by_code
-    from users
-    where fc_fid = ${current.fid}
-    limit 1
+  const parseResult = BodySchema.safeParse(body);
+  if (!parseResult.success) {
+    return NextResponse.json(
+      { ok: false, error: 'Invalid referral code' },
+      { status: 400 }
+    );
+  }
+
+  const current = await requireCurrentUser();
+  const { code } = parseResult.data;
+
+  // Get current user
+  const userRows = await sql`
+    SELECT id, referral_code, referred_by_code
+    FROM users
+    WHERE fc_fid = ${current.fid}
+    LIMIT 1
   `;
 
-  if (!rows.length) {
-    return NextResponse.json({ ok: false, error: 'User not synced' }, { status: 401 });
+  if (!userRows.length) {
+    return NextResponse.json(
+      { ok: false, error: 'User not found' },
+      { status: 404 }
+    );
   }
 
-  const me = rows[0];
+  const me = userRows[0];
 
-  if (me.referral_code === body.code) {
-    return NextResponse.json({ ok: false, error: 'Self referral not allowed' }, { status: 400 });
+  // Prevent self-referral
+  if (me.referral_code === code) {
+    return NextResponse.json(
+      { ok: false, error: 'Cannot use your own referral code' },
+      { status: 400 }
+    );
   }
 
+  // Check if already has a referrer
   if (me.referred_by_code) {
-    return NextResponse.json({ ok: true, alreadyAttached: true });
+    return NextResponse.json({
+      ok: true,
+      alreadyAttached: true,
+      message: 'You already have a referrer',
+    });
   }
 
+  // Find referrer
   const referrer = await sql`
-    select id
-    from users
-    where referral_code = ${body.code}
-    limit 1
+    SELECT id
+    FROM users
+    WHERE referral_code = ${code}
+    LIMIT 1
   `;
 
   if (!referrer.length) {
-    return NextResponse.json({ ok: false, error: 'Invalid code' }, { status: 404 });
+    return NextResponse.json(
+      { ok: false, error: 'Invalid referral code' },
+      { status: 404 }
+    );
   }
 
+  // Update user with referrer code
   await sql`
-    update users
-    set referred_by_code = ${body.code}
-    where id = ${me.id}
-      and referred_by_code is null
+    UPDATE users
+    SET referred_by_code = ${code}
+    WHERE id = ${me.id}
+      AND referred_by_code IS NULL
   `;
 
   return NextResponse.json({ ok: true });
