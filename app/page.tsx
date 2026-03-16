@@ -414,3 +414,4 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
               </div>
             </div>
           </div>
+// Force update Tue Mar 17 01:55:36 +04 2026
