@@ -9,8 +9,6 @@ const quickAuth = createClient();
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 function getRequestHost(req: Request): string {
-  // Use APP_URL for JWT verification domain
-  // This must match the domain in the farcaster.json manifest
   return new URL(APP_URL).host;
 }
 
@@ -23,22 +21,37 @@ async function ensureUser(fid: number, neynarUser: NeynarUser | null): Promise<s
   if (existing.length) {
     const userId = existing[0].id;
     
-    // Update profile if we have Neynar data
+    // Try to update profile if we have Neynar data
+    // This may fail if columns don't exist, so we wrap in try-catch
     if (neynarUser) {
-      await sql`
-        UPDATE users
-        SET 
-          fc_username = ${neynarUser.username ?? null},
-          fc_display_name = ${neynarUser.display_name ?? null},
-          fc_pfp_url = ${neynarUser.pfp_url ?? null},
-          fc_bio = ${neynarUser.profile?.bio?.text ?? null},
-          fc_score = ${neynarUser.experimental?.neynar_user_score ?? null},
-          fc_followers = ${neynarUser.follower_count ?? 0},
-          fc_following = ${neynarUser.following_count ?? 0},
-          fc_power_badge = ${neynarUser.power_badge ?? false},
-          updated_at = NOW()
-        WHERE id = ${userId}
-      `;
+      try {
+        await sql`
+          UPDATE users
+          SET 
+            fc_username = ${neynarUser.username ?? null},
+            fc_display_name = ${neynarUser.display_name ?? null},
+            fc_pfp_url = ${neynarUser.pfp_url ?? null},
+            fc_bio = ${neynarUser.profile?.bio?.text ?? null},
+            fc_score = ${neynarUser.experimental?.neynar_user_score ?? null},
+            fc_followers = ${neynarUser.follower_count ?? 0},
+            fc_following = ${neynarUser.following_count ?? 0},
+            fc_power_badge = ${neynarUser.power_badge ?? false},
+            updated_at = NOW()
+          WHERE id = ${userId}
+        `;
+      } catch (e) {
+        console.warn('[auth] Failed to update extended profile:', e);
+        // Try basic update without extended columns
+        try {
+          await sql`
+            UPDATE users
+            SET fc_username = ${neynarUser.username ?? null}
+            WHERE id = ${userId}
+          `;
+        } catch {
+          // Ignore - user exists, that's what matters
+        }
+      }
     }
     
     return userId;
@@ -48,95 +61,96 @@ async function ensureUser(fid: number, neynarUser: NeynarUser | null): Promise<s
   const username = neynarUser?.username || `fid-${fid}`;
   const referralCode = username.toUpperCase().replace(/[^A-Z0-9]/g, '') + '-' + fid;
 
-  const result = await sql`
-    INSERT INTO users (
-      fc_fid, fc_username, fc_display_name, fc_pfp_url, fc_bio,
-      fc_score, fc_followers, fc_following, fc_power_badge, referral_code
-    ) VALUES (
-      ${fid},
-      ${neynarUser?.username ?? null},
-      ${neynarUser?.display_name ?? null},
-      ${neynarUser?.pfp_url ?? null},
-      ${neynarUser?.profile?.bio?.text ?? null},
-      ${neynarUser?.experimental?.neynar_user_score ?? null},
-      ${neynarUser?.follower_count ?? 0},
-      ${neynarUser?.following_count ?? 0},
-      ${neynarUser?.power_badge ?? false},
-      ${referralCode}
-    )
-    RETURNING id
-  `;
-
-  return result[0].id;
+  // Try full insert first
+  try {
+    const result = await sql`
+      INSERT INTO users (
+        fc_fid, fc_username, fc_display_name, fc_pfp_url, fc_bio,
+        fc_score, fc_followers, fc_following, fc_power_badge, referral_code
+      ) VALUES (
+        ${fid},
+        ${neynarUser?.username ?? null},
+        ${neynarUser?.display_name ?? null},
+        ${neynarUser?.pfp_url ?? null},
+        ${neynarUser?.profile?.bio?.text ?? null},
+        ${neynarUser?.experimental?.neynar_user_score ?? null},
+        ${neynarUser?.follower_count ?? 0},
+        ${neynarUser?.following_count ?? 0},
+        ${neynarUser?.power_badge ?? false},
+        ${referralCode}
+      )
+      RETURNING id
+    `;
+    return result[0].id;
+  } catch (e) {
+    console.warn('[auth] Full insert failed, trying minimal insert:', e);
+    
+    // Fallback to minimal insert
+    const result = await sql`
+      INSERT INTO users (fc_fid, fc_username, referral_code)
+      VALUES (${fid}, ${username}, ${referralCode})
+      RETURNING id
+    `;
+    return result[0].id;
+  }
 }
 
 async function handleQuickAuth(token: string, req: Request) {
   const domain = getRequestHost(req);
   console.log('[auth] Verifying JWT for domain:', domain);
-  console.log('[auth] Token preview:', token.substring(0, 20) + '...');
-  console.log('[auth] All headers:', Object.fromEntries(req.headers.entries()));
 
   let payload;
   try {
-    payload = await quickAuth.verifyJwt({
-      token,
-      domain,
-    });
-    console.log('[auth] JWT verified successfully');
-    console.log('[auth] JWT payload:', JSON.stringify(payload));
+    payload = await quickAuth.verifyJwt({ token, domain });
+    console.log('[auth] JWT verified, payload:', JSON.stringify(payload));
   } catch (e: any) {
     console.error('[auth] JWT verification failed:', e?.message || e);
-    console.error('[auth] JWT error details:', e);
     return NextResponse.json(
       { user: null, error: 'jwt_verification_failed', details: e?.message },
       { status: 401 }
     );
   }
 
-  // Quick Auth JWT has FID in payload.sub, not payload.fid
+  // FID is in payload.sub
   const fid = typeof payload.sub === 'number' ? payload.sub : Number(payload.sub);
   
   if (!fid || Number.isNaN(fid)) {
     return NextResponse.json(
-      { user: null, error: 'missing_fid', details: 'FID not found in token sub claim' },
+      { user: null, error: 'missing_fid' },
       { status: 401 }
     );
   }
-  
-  // username is not guaranteed in the JWT
-  const username = null;
 
   console.log('[auth] Authenticating FID:', fid);
 
-  // Fetch full user data from Neynar
+  // Fetch Neynar data (optional)
   let neynarUser: NeynarUser | null = null;
   try {
     neynarUser = await fetchUserWithScore(fid);
   } catch (e) {
-    console.error('[auth] Failed to fetch Neynar profile:', e);
+    console.warn('[auth] Neynar fetch failed:', e);
   }
 
-  // Ensure user exists in DB
-  const userId = await ensureUser(fid, neynarUser);
-
-  // Set session cookie
-  await setSession(fid, username, userId);
-
-  // Return full user data
-  const user = await getFullUser(fid);
-  console.log('[auth] User authenticated:', user?.fcFid);
-
-  return NextResponse.json({ user });
+  // Create/update user
+  try {
+    const userId = await ensureUser(fid, neynarUser);
+    await setSession(fid, neynarUser?.username || null, userId);
+    
+    const user = await getFullUser(fid);
+    console.log('[auth] Success:', user?.fcFid);
+    return NextResponse.json({ user });
+  } catch (e: any) {
+    console.error('[auth] Database error:', e);
+    return NextResponse.json(
+      { user: null, error: 'database_error', details: e.message },
+      { status: 500 }
+    );
+  }
 }
 
 export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization');
-  console.log('[auth] GET headers:', { 
-    authorization: authHeader ? 'present' : 'missing', 
-    host: getRequestHost(req) 
-  });
 
-  // Handle Quick Auth Bearer token
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.replace('Bearer ', '').trim();
     return handleQuickAuth(token, req);
@@ -150,7 +164,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ user: null });
   }
 
-  // Try to get user from session
   try {
     const { default: jwtVerify } = await import('jose').then(m => ({ default: m.jwtVerify }));
     const JWT_SECRET = new TextEncoder().encode(

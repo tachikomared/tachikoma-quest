@@ -98,50 +98,81 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 }
 
 export async function getFullUser(fid: number): Promise<FullUser | null> {
-  const rows = await sql`
-    SELECT 
-      u.id,
-      u.fc_fid,
-      u.fc_username,
-      u.fc_display_name,
-      u.fc_pfp_url,
-      u.fc_bio,
-      u.fc_score,
-      u.fc_followers,
-      u.fc_following,
-      u.fc_power_badge,
-      u.referral_code,
-      u.referred_by_code,
-      u.wallet_address,
-      COALESCE(SUM(qc.points_awarded), 0)::int AS points
-    FROM users u
-    LEFT JOIN quest_claims qc ON qc.user_id = u.id
-    WHERE u.fc_fid = ${fid}
-    GROUP BY u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, 
-             u.fc_bio, u.fc_score, u.fc_followers, u.fc_following, u.fc_power_badge,
-             u.referral_code, u.referred_by_code, u.wallet_address
-    LIMIT 1
-  `;
+  try {
+    const rows = await sql`
+      SELECT 
+        u.id,
+        u.fc_fid,
+        u.fc_username,
+        u.fc_display_name,
+        u.fc_pfp_url,
+        u.fc_bio,
+        u.fc_score,
+        u.fc_followers,
+        u.fc_following,
+        u.fc_power_badge,
+        u.referral_code,
+        u.referred_by_code,
+        u.wallet_address,
+        COALESCE(SUM(qc.points_awarded), 0)::int AS points
+      FROM users u
+      LEFT JOIN quest_claims qc ON qc.user_id = u.id
+      WHERE u.fc_fid = ${fid}
+      GROUP BY u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, 
+               u.fc_bio, u.fc_score, u.fc_followers, u.fc_following, u.fc_power_badge,
+               u.referral_code, u.referred_by_code, u.wallet_address
+      LIMIT 1
+    `;
 
-  if (!rows.length) return null;
+    if (!rows.length) return null;
 
-  const r = rows[0];
-  return {
-    id: r.id,
-    fcFid: r.fc_fid,
-    fcUsername: r.fc_username,
-    fcDisplayName: r.fc_display_name,
-    fcPfpUrl: r.fc_pfp_url,
-    fcBio: r.fc_bio,
-    fcScore: r.fc_score ? Number(r.fc_score) : null,
-    fcFollowers: r.fc_followers || 0,
-    fcFollowing: r.fc_following || 0,
-    fcPowerBadge: r.fc_power_badge || false,
-    referralCode: r.referral_code,
-    referredByCode: r.referred_by_code,
-    walletAddress: r.wallet_address,
-    points: r.points || 0,
-  };
+    const r = rows[0];
+    return {
+      id: r.id,
+      fcFid: r.fc_fid,
+      fcUsername: r.fc_username,
+      fcDisplayName: r.fc_display_name,
+      fcPfpUrl: r.fc_pfp_url,
+      fcBio: r.fc_bio,
+      fcScore: r.fc_score ? Number(r.fc_score) : null,
+      fcFollowers: r.fc_followers || 0,
+      fcFollowing: r.fc_following || 0,
+      fcPowerBadge: r.fc_power_badge || false,
+      referralCode: r.referral_code,
+      referredByCode: r.referred_by_code,
+      walletAddress: r.wallet_address,
+      points: r.points || 0,
+    };
+  } catch (e) {
+    console.warn('[auth] getFullUser failed with extended columns, trying minimal:', e);
+    
+    // Fallback to minimal query
+    const rows = await sql`
+      SELECT id, fc_fid, fc_username, referral_code
+      FROM users
+      WHERE fc_fid = ${fid}
+      LIMIT 1
+    `;
+    
+    if (!rows.length) return null;
+    
+    return {
+      id: rows[0].id,
+      fcFid: rows[0].fc_fid,
+      fcUsername: rows[0].fc_username,
+      fcDisplayName: null,
+      fcPfpUrl: null,
+      fcBio: null,
+      fcScore: null,
+      fcFollowers: 0,
+      fcFollowing: 0,
+      fcPowerBadge: false,
+      referralCode: rows[0].referral_code,
+      referredByCode: null,
+      walletAddress: null,
+      points: 0,
+    };
+  }
 }
 
 export async function setSession(fid: number, username: string | null, userId: string): Promise<void> {
