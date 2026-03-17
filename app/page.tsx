@@ -602,7 +602,7 @@ function PilotTab({ user }: { user: any }) {
         )}
       </div>
 
-      {/* $TACHI Transfer Section - only show if wallet connected and has balance */
+      {/* $TACHI Transfer Section - only show if wallet connected and has balance */}
       {user.walletAddress && Number(formattedBalance) > 0 && (
         <TachiTransferSection balance={formattedBalance} />
       )}
