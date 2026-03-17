@@ -22,6 +22,19 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<Tab>('missions');
   const user = auth.status === 'authenticated' ? auth.user : null;
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (!ref || auth.status !== 'authenticated') return;
+
+    fetch('/api/referrals/attach', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: ref }),
+    }).catch(() => null);
+  }, [auth.status]);
+
   return (
     <div className="min-h-screen bg-[#050508] text-[#f0f0f0] crt-flicker">
       {/* Warning Stripe Header */}
@@ -134,6 +147,23 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
         return;
       }
       await linkWalletForQuest(mission);
+      return;
+    }
+
+    if (mission.verification === 'wallet_balance') {
+      setStatus(mission.id, 'active');
+      try {
+        const res = await fetch('/api/token/balance');
+        const data = await res.json();
+        const minBalance = Number(mission.target?.minBalance || '0');
+        if (Number(data.formattedBalance || 0) >= minBalance) {
+          setStatus(mission.id, 'completed');
+        } else {
+          setStatus(mission.id, 'failed');
+        }
+      } catch {
+        setStatus(mission.id, 'failed');
+      }
       return;
     }
     
@@ -314,9 +344,17 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
 // War Room Tab (Leaderboard)
 function WarRoomTab({ user }: { user: any }) {
   const [operatives, setOperatives] = useState<any[]>([]);
+  const [holders, setHolders] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/leaderboard').then(r => r.json()).then(d => setOperatives(d.entries || MOCK_LEADERBOARD));
+    fetch('/api/leaderboard')
+      .then(r => r.json())
+      .then(d => setOperatives(d.entries || MOCK_LEADERBOARD));
+
+    fetch('/api/token/holders')
+      .then(r => r.json())
+      .then(d => setHolders(d.holders || []))
+      .catch(() => setHolders([]));
   }, []);
 
   const getRankStyle = (rank: number) => {
@@ -377,6 +415,55 @@ function WarRoomTab({ user }: { user: any }) {
           </div>
         </div>
       )}
+
+      <div className="mission-card">
+        <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest mb-3">
+          <span className="text-lg">🦀</span>
+          <span>TOKEN HOLDERS</span>
+          <div className="flex-1 h-px bg-[#ff1a1a]/30" />
+        </div>
+
+        {holders.length === 0 ? (
+          <div className="text-xs text-[#5a5a6a] font-mono">NO HOLDER DATA YET</div>
+        ) : (
+          <div className="space-y-2">
+            {holders.map((holder, i) => (
+              <div
+                key={`${holder.fid}-${i}`}
+                className={`flex items-center gap-3 p-2 border border-[#1a1a24] rounded ${
+                  holder.username === user?.fcUsername ? 'bg-[#ff1a1a]/10' : 'bg-[#050508]'
+                }`}
+              >
+                <div className="w-8 h-8 rounded border-2 border-[#1a1a24] flex items-center justify-center font-black text-xs text-[#ff6b00]">
+                  {i + 1}
+                </div>
+                <div className="w-9 h-9 rounded bg-[#1a1a24] border border-[#252535] overflow-hidden">
+                  {holder.pfpUrl ? (
+                    <img
+                      src={holder.pfpUrl}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xs">?</div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="text-xs font-bold">@{holder.username || 'anon'}</div>
+                  <div className="text-[10px] text-[#5a5a6a] font-mono">FID {holder.fid}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[#39ff14] font-black text-xs" style={{ fontFamily: 'Press Start 2P, monospace' }}>
+                    {holder.balance}
+                  </div>
+                  <div className="text-[10px] text-[#5a5a6a] font-mono">$TACHI</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -12,6 +12,7 @@ export type QuestVerification =
   | 'fc_follow_user'
   | 'fc_cast_viewer_context'
   | 'wallet_signature'
+  | 'wallet_balance'
   | 'manual_open'
   | 'referral_qualified';
 
@@ -183,7 +184,7 @@ export const QUESTS: QuestDef[] = [
     description: 'Hold at least 100 $TACHI tokens in your linked wallet',
     platform: 'wallet',
     action: 'link_wallet',
-    verification: 'wallet_signature',
+    verification: 'wallet_balance',
     points: 1000,
     tachiReward: 0,
     repeatable: false,
