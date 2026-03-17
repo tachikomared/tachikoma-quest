@@ -3,6 +3,32 @@ import { sql } from '@/lib/db';
 import { requireCurrentUser } from '@/lib/auth';
 import { fetchCastWithViewer, verifyFarcasterFollow } from '@/lib/neynar';
 import { getQuest } from '@/lib/quests';
+import { createPublicClient, http } from 'viem';
+import { base } from 'viem/chains';
+
+const TACHI_CONTRACT = '0x39B4B879b8521d6A8C3a87cda64b969327b7fbA3';
+
+const ERC20_BALANCE_ABI = [
+  {
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'decimals',
+    outputs: [{ name: '', type: 'uint8' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const;
+
+const publicClient = createPublicClient({
+  chain: base,
+  transport: http(),
+});
 
 async function awardReferralIfQualified(userId: string) {
   // Check if user has wallet and at least one Farcaster quest
@@ -149,6 +175,40 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
       viewerContext: cast?.viewer_context ?? null,
       verified,
     };
+  }
+
+  if (quest.verification === 'wallet_balance') {
+    const minBalance = Number(quest.target.minBalance || '0');
+
+    const walletRows = await sql`
+      SELECT wallet_address FROM users WHERE id = ${userId} LIMIT 1
+    `;
+
+    const walletAddress = walletRows[0]?.wallet_address;
+    if (!walletAddress) {
+      return NextResponse.json(
+        { verified: false, error: 'wallet_not_linked' },
+        { status: 400 }
+      );
+    }
+
+    const [balance, decimals] = await Promise.all([
+      publicClient.readContract({
+        address: TACHI_CONTRACT as `0x${string}`,
+        abi: ERC20_BALANCE_ABI,
+        functionName: 'balanceOf',
+        args: [walletAddress as `0x${string}`],
+      }),
+      publicClient.readContract({
+        address: TACHI_CONTRACT as `0x${string}`,
+        abi: ERC20_BALANCE_ABI,
+        functionName: 'decimals',
+      }),
+    ]);
+
+    const formatted = Number(balance) / Math.pow(10, decimals);
+    verified = formatted >= minBalance;
+    proof = { walletAddress, balance: formatted.toFixed(4), minBalance };
   }
 
   if (!verified) {
