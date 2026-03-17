@@ -25,10 +25,10 @@ function getSql(): ReturnType<typeof postgres> {
   return sqlInstance;
 }
 
-// Export sql tagged template function with proper typing
+// Export sql tagged template function - use any to match postgres.js internals
 export const sql = (
   strings: TemplateStringsArray,
-  ...values: (string | number | boolean | null | undefined)[]
+  ...values: any[]
 ) => {
   return getSql()(strings, ...values);
 };
