@@ -189,11 +189,29 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
     
     setStatus(mission.id, 'active');
     try {
-      const res = await fetch(`/api/quests/${mission.id}/verify`, { method: 'POST' });
-      const data = await res.json();
-      if (data.verified) {
+      const attemptVerify = async () => {
+        const res = await fetch(`/api/quests/${mission.id}/verify`, { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        return { ok: res.ok, data };
+      };
+
+      let verified = false;
+      let result = await attemptVerify();
+      verified = Boolean(result.data?.verified);
+
+      if (!verified) {
+        for (let i = 0; i < 5; i += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 8000));
+          result = await attemptVerify();
+          verified = Boolean(result.data?.verified);
+          if (verified) break;
+        }
+      }
+
+      if (verified) {
         setStatus(mission.id, 'completed');
         await refreshAuth();
+        await refreshCompletions();
       } else {
         setStatus(mission.id, 'failed');
       }
