@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/app/providers';
-import { useConnect, useAccount } from 'wagmi';
+import { useConnect, useAccount, useSignMessage } from 'wagmi';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { TACHI_CONTRACT, ERC20_BALANCE_ABI, MOCK_REFERRAL_REWARDS, MOCK_LEADERBOARD } from '@/data/mocks';
 import { useReadContract } from 'wagmi';
@@ -92,6 +92,9 @@ export default function HomePage() {
 function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   const [missions, setMissions] = useState<any[]>([]);
   const [statuses, setStatuses] = useState<Record<string, MissionStatus>>({});
+  const { connect, connectors, isPending: isConnecting } = useConnect();
+  const { address, isConnected } = useAccount();
+  const { signMessageAsync } = useSignMessage();
 
   useEffect(() => {
     fetch('/api/quests').then(r => r.json()).then(d => setMissions(d.quests || []));
@@ -122,7 +125,18 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   };
 
   const verifyMission = async (mission: any) => {
-    if (!user || mission.platform === 'x' || mission.verification === 'wallet_signature') return;
+    if (!user || mission.platform === 'x') return;
+    
+    // Handle wallet link quest separately
+    if (mission.verification === 'wallet_signature') {
+      if (!isConnected || !address) {
+        // Show connect wallet prompt
+        return;
+      }
+      await linkWalletForQuest(mission);
+      return;
+    }
+    
     setStatus(mission.id, 'active');
     try {
       const res = await fetch(`/api/quests/${mission.id}/verify`, { method: 'POST' });
@@ -130,6 +144,34 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
       if (data.verified) setStatus(mission.id, 'completed');
       else setStatus(mission.id, 'failed');
     } catch {
+      setStatus(mission.id, 'failed');
+    }
+  };
+
+  const linkWalletForQuest = async (mission: any) => {
+    if (!user || !address || !isConnected) return;
+    
+    setStatus(mission.id, 'active');
+    try {
+      // Sign message with FID
+      const message = `Link wallet to TACHI Quest: ${user.fcFid}`;
+      const signature = await signMessageAsync({ message });
+      
+      // Send to API
+      const res = await fetch('/api/wallet/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, message, signature }),
+      });
+      
+      const data = await res.json();
+      if (data.ok) {
+        setStatus(mission.id, 'completed');
+      } else {
+        setStatus(mission.id, 'failed');
+      }
+    } catch (e) {
+      console.error('[wallet] Link failed:', e);
       setStatus(mission.id, 'failed');
     }
   };
@@ -144,7 +186,8 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
               <img 
                 src={user.fcPfpUrl || '/default-avatar.png'} 
                 alt="" 
-                className="w-14 h-14 rounded border-2 border-[#ff1a1a]" 
+                className="w-14 h-14 rounded border-2 border-[#ff1a1a] object-cover bg-[#1a1a24]"
+                onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }}
               />
               <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#39ff14] rounded-full border-2 border-[#050508] flex items-center justify-center">
                 <span className="text-xs">✓</span>
@@ -217,6 +260,30 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
             </div>
             
             <div className="flex gap-2 mt-4">
+              {/* Wallet Link Quest */}
+              {mission.verification === 'wallet_signature' && (
+                <>
+                  {!isConnected ? (
+                    <button 
+                      onClick={() => connect({ connector: connectors[0] })}
+                      disabled={isConnecting}
+                      className="mecha-button flex-1 text-xs bg-[#00f0ff]/10 border-[#00f0ff]"
+                    >
+                      {isConnecting ? '⏳ CONNECTING...' : '🔗 CONNECT WALLET'}
+                    </button>
+                  ) : status !== 'completed' ? (
+                    <button 
+                      onClick={() => linkWalletForQuest(mission)}
+                      disabled={status === 'active'}
+                      className="mecha-button flex-1 text-xs bg-[#39ff14]/10 border-[#39ff14]"
+                    >
+                      {status === 'active' ? '⏳ LINKING...' : '✓ LINK WALLET'}
+                    </button>
+                  ) : null}
+                </>
+              )}
+              
+              {/* Farcaster/X Quests */}
               {(mission.platform === 'farcaster' || mission.platform === 'x') && (
                 <button 
                   onClick={() => executeMission(mission)}
@@ -225,6 +292,8 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
                   {mission.platform === 'x' ? '⚡ DEPLOY TO X' : '⚡ ENGAGE'}
                 </button>
               )}
+              
+              {/* Verify button for Farcaster quests */}
               {mission.platform === 'farcaster' && status !== 'completed' && (
                 <button 
                   onClick={() => verifyMission(mission)}
@@ -423,12 +492,27 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
 // Pilot Tab (Profile)
 function PilotTab({ user }: { user: any }) {
   const [mounted, setMounted] = useState(false);
+  const { address } = useAccount();
+  
+  // Read real $TACHI balance from blockchain
+  const { data: tachiBalance } = useReadContract({
+    address: TACHI_CONTRACT as `0x${string}`,
+    abi: ERC20_BALANCE_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address,
+    },
+  });
   
   useEffect(() => {
     setMounted(true);
   }, []);
 
   if (!user) return null;
+
+  // Format balance (18 decimals)
+  const formattedBalance = tachiBalance ? (Number(tachiBalance) / 1e18).toFixed(2) : '0';
 
   return (
     <div className="space-y-4">
@@ -444,7 +528,8 @@ function PilotTab({ user }: { user: any }) {
           <img 
             src={user.fcPfpUrl || '/default-avatar.png'} 
             alt="" 
-            className="w-24 h-24 rounded-full border-4 border-[#ff1a1a] mx-auto"
+            className="w-24 h-24 rounded-full border-4 border-[#ff1a1a] mx-auto object-cover bg-[#1a1a24]"
+            onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }}
           />
           <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#ff1a1a] text-[#050508] px-3 py-1 rounded-full text-xs font-black">
             PILOT
@@ -479,13 +564,13 @@ function PilotTab({ user }: { user: any }) {
         <div className="mission-card text-center">
           <div className="text-[#8a8a9a] text-xs font-mono mb-1">WALLET</div>
           <div className="text-[#39ff14] font-black text-lg" style={{ fontFamily: 'Press Start 2P, monospace' }}>
-            {user.linkedWallet ? 'LINKED' : 'NONE'}
+            {user.walletAddress ? 'LINKED' : 'NONE'}
           </div>
         </div>
         <div className="mission-card text-center">
           <div className="text-[#8a8a9a] text-xs font-mono mb-1">$TACHI</div>
           <div className="text-[#ff1a1a] font-black text-2xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>
-            {mounted ? (user.tachiBalance || 0) : '---'}
+            {mounted ? formattedBalance : '---'}
           </div>
         </div>
       </div>
