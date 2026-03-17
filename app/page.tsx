@@ -139,8 +139,6 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   };
 
   const executeMission = async (mission: any) => {
-    setStatus(mission.id, 'active');
-    
     if (mission.platform === 'x' && mission.target?.url) {
       if (isMiniApp) await sdk.actions.openUrl({ url: mission.target.url });
       else window.open(mission.target.url, '_blank');
