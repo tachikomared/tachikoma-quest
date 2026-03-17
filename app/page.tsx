@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/app/providers';
-import { useConnect, useAccount, useSignMessage } from 'wagmi';
+import { useConnect, useAccount, useSignMessage, useWriteContract } from 'wagmi';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { TACHI_CONTRACT, ERC20_BALANCE_ABI, MOCK_REFERRAL_REWARDS, MOCK_LEADERBOARD } from '@/data/mocks';
 import { useReadContract } from 'wagmi';
@@ -578,7 +578,7 @@ function PilotTab({ user }: { user: any }) {
       {/* Wallet Section */}
       <div className="mission-card">
         <div className="text-[#00f0ff] text-xs font-mono mb-3 tracking-wider">/// WALLET STATUS ///</div>
-        {user.linkedWallet ? (
+        {user.walletAddress ? (
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-[#39ff14]/20 flex items-center justify-center">
@@ -587,7 +587,7 @@ function PilotTab({ user }: { user: any }) {
               <div className="flex-1">
                 <div className="text-sm font-bold">Wallet Connected</div>
                 <div className="text-xs text-[#8a8a9a] font-mono">
-                  {user.linkedWallet.slice(0, 6)}...{user.linkedWallet.slice(-4)}
+                  {user.walletAddress.slice(0, 6)}...{user.walletAddress.slice(-4)}
                 </div>
               </div>
             </div>
@@ -602,12 +602,111 @@ function PilotTab({ user }: { user: any }) {
         )}
       </div>
 
+      {/* $TACHI Transfer Section - only show if wallet connected and has balance */
+      {user.walletAddress && Number(formattedBalance) > 0 && (
+        <TachiTransferSection balance={formattedBalance} />
+      )}
+
       {/* Access Key */}
       <div className="mission-card">
         <div className="text-[#00f0ff] text-xs font-mono mb-2 tracking-wider">/// YOUR ACCESS KEY ///</div>
         <div className="bg-[#050508] border border-[#1a1a24] rounded p-3 text-center">
           <code className="text-[#ff1a1a] font-mono text-lg tracking-wider">{user.referralCode}</code>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// $TACHI Transfer Component
+function TachiTransferSection({ balance }: { balance: string }) {
+  const [toAddress, setToAddress] = useState('');
+  const [amount, setAmount] = useState('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const { writeContract } = useWriteContract();
+
+  const handleTransfer = async () => {
+    if (!toAddress || !amount) return;
+    
+    setStatus('loading');
+    try {
+      writeContract({
+        address: TACHI_CONTRACT as `0x${string}`,
+        abi: [
+          {
+            inputs: [
+              { name: 'to', type: 'address' },
+              { name: 'value', type: 'uint256' },
+            ],
+            name: 'transfer',
+            outputs: [{ name: '', type: 'bool' }],
+            stateMutability: 'nonpayable',
+            type: 'function',
+          },
+        ],
+        functionName: 'transfer',
+        args: [toAddress as `0x${string}`, BigInt(Math.floor(Number(amount) * 1e18))],
+      });
+      setStatus('success');
+      setToAddress('');
+      setAmount('');
+    } catch (e) {
+      console.error('[transfer] Failed:', e);
+      setStatus('error');
+    }
+  };
+
+  return (
+    <div className="mission-card border-[#ff1a1a]/30">
+      <div className="text-[#ff1a1a] text-xs font-mono mb-3 tracking-wider">/// TRANSFER $TACHI ///</div>
+      
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs text-[#8a8a9a] font-mono block mb-1">RECIPIENT ADDRESS</label>
+          <input
+            type="text"
+            value={toAddress}
+            onChange={(e) => setToAddress(e.target.value)}
+            placeholder="0x..."
+            className="w-full bg-[#050508] border border-[#1a1a24] rounded p-2 text-xs font-mono text-[#f0f0f0] focus:border-[#ff1a1a] focus:outline-none"
+          />
+        </div>
+        
+        <div>
+          <label className="text-xs text-[#8a8a9a] font-mono block mb-1">AMOUNT</label>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              max={balance}
+              className="flex-1 bg-[#050508] border border-[#1a1a24] rounded p-2 text-xs font-mono text-[#f0f0f0] focus:border-[#ff1a1a] focus:outline-none"
+            />
+            <button
+              onClick={() => setAmount(balance)}
+              className="text-xs bg-[#1a1a24] border border-[#252535] rounded px-3 text-[#8a8a9a] hover:text-[#f0f0f0]"
+            >
+              MAX
+            </button>
+          </div>
+          <div className="text-xs text-[#5a5a6a] mt-1">Available: {balance} $TACHI</div>
+        </div>
+        
+        <button
+          onClick={handleTransfer}
+          disabled={status === 'loading' || !toAddress || !amount}
+          className="mecha-button w-full text-xs bg-[#ff1a1a]/20 border-[#ff1a1a] disabled:opacity-50"
+        >
+          {status === 'loading' ? '⏳ BROADCASTING...' : '🚀 SEND $TACHI'}
+        </button>
+        
+        {status === 'success' && (
+          <div className="text-xs text-[#39ff14] font-mono text-center">✓ TRANSFER INITIATED</div>
+        )}
+        {status === 'error' && (
+          <div className="text-xs text-[#ff1a1a] font-mono text-center">✗ TRANSFER FAILED</div>
+        )}
       </div>
     </div>
   );
