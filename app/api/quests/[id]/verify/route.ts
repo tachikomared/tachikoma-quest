@@ -6,7 +6,7 @@ import { getQuest } from '@/lib/quests';
 import { createPublicClient, http } from 'viem';
 import { base } from 'viem/chains';
 
-async function withRetry<T>(fn: () => Promise<T>, attempts = 3, delayMs = 1200): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, attempts = 6, delayMs = 1500): Promise<T> {
   let lastError: unknown;
   for (let i = 0; i < attempts; i += 1) {
     try {
@@ -14,7 +14,7 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3, delayMs = 1200):
     } catch (e) {
       lastError = e;
       if (i < attempts - 1) {
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        await new Promise((resolve) => setTimeout(resolve, delayMs * (i + 1)));
       }
     }
   }
@@ -175,13 +175,29 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
       );
     }
     const type = quest.target.castHash ? 'hash' : 'url';
-    const cast = await withRetry(() => fetchCastWithViewer(identifier, type, current.fid));
 
-    if (quest.action === 'recast_cast') {
-      verified = Boolean(cast?.viewer_context?.recasted);
-    } else if (quest.action === 'like_cast') {
-      verified = Boolean(cast?.viewer_context?.liked);
+    let cast = await withRetry(() => fetchCastWithViewer(identifier, type, current.fid));
+
+    const checkViewerContext = (c: any) => {
+      if (!c?.viewer_context) return false;
+      if (quest.action === 'recast_cast') return Boolean(c.viewer_context.recasted);
+      if (quest.action === 'like_cast') return Boolean(c.viewer_context.liked);
+      return false;
+    };
+
+    let verifiedInViewerContext = checkViewerContext(cast);
+
+    // If viewer_context is empty or false, retry a few times to avoid API lag
+    if (!verifiedInViewerContext) {
+      for (let i = 0; i < 3; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1500 * (i + 1)));
+        cast = await fetchCastWithViewer(identifier, type, current.fid);
+        verifiedInViewerContext = checkViewerContext(cast);
+        if (verifiedInViewerContext) break;
+      }
     }
+
+    verified = verifiedInViewerContext;
 
     proof = {
       identifier,
