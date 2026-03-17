@@ -6,6 +6,21 @@ import { getQuest } from '@/lib/quests';
 import { createPublicClient, http } from 'viem';
 import { base } from 'viem/chains';
 
+async function withRetry<T>(fn: () => Promise<T>, attempts = 3, delayMs = 1200): Promise<T> {
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastError = e;
+      if (i < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw lastError;
+}
+
 const TACHI_CONTRACT = '0x39B4B879b8521d6A8C3a87cda64b969327b7fbA3';
 
 const ERC20_BALANCE_ABI = [
@@ -147,7 +162,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
         { status: 400 }
       );
     }
-    verified = await verifyFarcasterFollow(current.fid, targetFid);
+    verified = await withRetry(() => verifyFarcasterFollow(current.fid, targetFid));
     proof = { targetFid, viewerFid: current.fid, verified };
   }
 
@@ -160,7 +175,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
       );
     }
     const type = quest.target.castHash ? 'hash' : 'url';
-    const cast = await fetchCastWithViewer(identifier, type, current.fid);
+    const cast = await withRetry(() => fetchCastWithViewer(identifier, type, current.fid));
 
     if (quest.action === 'recast_cast') {
       verified = Boolean(cast?.viewer_context?.recasted);
