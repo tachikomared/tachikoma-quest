@@ -114,14 +114,15 @@ export async function getFullUser(fid: number): Promise<FullUser | null> {
         u.fc_power_badge,
         u.referral_code,
         u.referred_by_code,
-        u.wallet_address,
+        MAX(w.address) AS wallet_address,
         COALESCE(SUM(qc.points_awarded), 0)::int AS points
       FROM users u
+      LEFT JOIN wallets w ON w.user_id = u.id AND w.verified = true
       LEFT JOIN quest_claims qc ON qc.user_id = u.id
       WHERE u.fc_fid = ${fid}
       GROUP BY u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, 
                u.fc_bio, u.fc_score, u.fc_followers, u.fc_following, u.fc_power_badge,
-               u.referral_code, u.referred_by_code, u.wallet_address
+               u.referral_code, u.referred_by_code
       LIMIT 1
     `;
 

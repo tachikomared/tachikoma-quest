@@ -87,10 +87,14 @@ export async function POST(req: Request) {
       verified = true
   `;
 
-  // Update user's primary wallet
-  await sql`
-    UPDATE users SET wallet_address = ${addressLower} WHERE id = ${userId}
-  `;
+  // Update user's primary wallet (best effort)
+  try {
+    await sql`
+      UPDATE users SET wallet_address = ${addressLower} WHERE id = ${userId}
+    `;
+  } catch (e) {
+    console.warn('[wallet] users.wallet_address update skipped:', e);
+  }
 
   // Award quest points if wallet-link quest exists
   const walletQuest = getQuest('wallet-link');

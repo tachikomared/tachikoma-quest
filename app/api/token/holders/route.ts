@@ -46,12 +46,12 @@ export async function GET() {
         u.fc_username,
         u.fc_display_name,
         u.fc_pfp_url,
-        u.wallet_address,
+        w.address AS wallet_address,
         COALESCE(SUM(qc.points_awarded), 0)::int as points
       FROM users u
+      JOIN wallets w ON w.user_id = u.id AND w.verified = true
       LEFT JOIN quest_claims qc ON qc.user_id = u.id
-      WHERE u.wallet_address IS NOT NULL
-      GROUP BY u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, u.wallet_address
+      GROUP BY u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, w.address
     `;
 
     // Get token decimals

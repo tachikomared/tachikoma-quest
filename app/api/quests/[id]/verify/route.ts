@@ -181,7 +181,10 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     const minBalance = Number(quest.target.minBalance || '0');
 
     const walletRows = await sql`
-      SELECT wallet_address FROM users WHERE id = ${userId} LIMIT 1
+      SELECT w.address AS wallet_address
+      FROM wallets w
+      WHERE w.user_id = ${userId} AND w.verified = true
+      LIMIT 1
     `;
 
     const walletAddress = walletRows[0]?.wallet_address;
