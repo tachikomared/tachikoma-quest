@@ -105,14 +105,34 @@ export default function HomePage() {
 function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   const [missions, setMissions] = useState<any[]>([]);
   const [statuses, setStatuses] = useState<Record<string, MissionStatus>>({});
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const { connect, connectors, isPending: isConnecting } = useConnect();
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { refreshAuth } = useAuth();
 
+  const refreshCompletions = async () => {
+    try {
+      const res = await fetch('/api/quests/status');
+      const data = await res.json();
+      const completed = new Set<string>(data.completed || []);
+      setCompletedIds(completed);
+      setStatuses((prev) => {
+        const next = { ...prev } as Record<string, MissionStatus>;
+        completed.forEach((id) => {
+          next[id] = 'completed';
+        });
+        return next;
+      });
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
     fetch('/api/quests').then(r => r.json()).then(d => setMissions(d.quests || []));
-  }, []);
+    if (user) refreshCompletions();
+  }, [user]);
 
   const setStatus = (id: string, status: MissionStatus) => {
     setStatuses(s => ({ ...s, [id]: status }));
@@ -159,6 +179,7 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
         if (data.verified) {
           setStatus(mission.id, 'completed');
           await refreshAuth();
+          await refreshCompletions();
         } else {
           setStatus(mission.id, 'failed');
         }
@@ -203,6 +224,7 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
       if (data.ok) {
         setStatus(mission.id, 'completed');
         await refreshAuth();
+        await refreshCompletions();
       } else {
         setStatus(mission.id, 'failed');
       }
@@ -310,10 +332,10 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
                   ) : status !== 'completed' ? (
                     <button 
                       onClick={() => linkWalletForQuest(mission)}
-                      disabled={status === 'active'}
+                      disabled={status === 'active' || completedIds.has(mission.id)}
                       className="mecha-button flex-1 text-xs bg-[#39ff14]/10 border-[#39ff14]"
                     >
-                      {status === 'active' ? '⏳ LINKING...' : '✓ LINK WALLET'}
+                      {status === 'active' ? '⏳ LINKING...' : completedIds.has(mission.id) ? '✅ DONE' : '✓ LINK WALLET'}
                     </button>
                   ) : null}
                 </>
@@ -323,20 +345,21 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
               {(mission.platform === 'farcaster' || mission.platform === 'x') && (
                 <button 
                   onClick={() => executeMission(mission)}
+                  disabled={completedIds.has(mission.id)}
                   className="mecha-button flex-1 text-xs"
                 >
-                  {mission.platform === 'x' ? '⚡ DEPLOY TO X' : '⚡ ENGAGE'}
+                  {completedIds.has(mission.id) ? '✅ DONE' : mission.platform === 'x' ? '⚡ DEPLOY TO X' : '⚡ ENGAGE'}
                 </button>
               )}
               
               {/* Verify button for Farcaster quests */}
-              {mission.platform === 'farcaster' && status !== 'completed' && (
+              {mission.platform === 'farcaster' && (
                 <button 
                   onClick={() => verifyMission(mission)}
-                  disabled={status === 'active'}
+                  disabled={status === 'active' || completedIds.has(mission.id)}
                   className="mecha-button flex-1 text-xs bg-[#ff1a1a]/20"
                 >
-                  {status === 'active' ? '⏳ VERIFYING...' : '✓ CONFIRM'}
+                  {status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ DONE' : '✓ CONFIRM'}
                 </button>
               )}
             </div>
