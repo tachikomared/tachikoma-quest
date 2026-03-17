@@ -108,6 +108,7 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   const { connect, connectors, isPending: isConnecting } = useConnect();
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
+  const { refreshAuth } = useAuth();
 
   useEffect(() => {
     fetch('/api/quests').then(r => r.json()).then(d => setMissions(d.quests || []));
@@ -153,11 +154,11 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
     if (mission.verification === 'wallet_balance') {
       setStatus(mission.id, 'active');
       try {
-        const res = await fetch('/api/token/balance');
+        const res = await fetch(`/api/quests/${mission.id}/verify`, { method: 'POST' });
         const data = await res.json();
-        const minBalance = Number(mission.target?.minBalance || '0');
-        if (Number(data.formattedBalance || 0) >= minBalance) {
+        if (data.verified) {
           setStatus(mission.id, 'completed');
+          await refreshAuth();
         } else {
           setStatus(mission.id, 'failed');
         }
@@ -171,8 +172,12 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
     try {
       const res = await fetch(`/api/quests/${mission.id}/verify`, { method: 'POST' });
       const data = await res.json();
-      if (data.verified) setStatus(mission.id, 'completed');
-      else setStatus(mission.id, 'failed');
+      if (data.verified) {
+        setStatus(mission.id, 'completed');
+        await refreshAuth();
+      } else {
+        setStatus(mission.id, 'failed');
+      }
     } catch {
       setStatus(mission.id, 'failed');
     }
@@ -197,6 +202,7 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
       const data = await res.json();
       if (data.ok) {
         setStatus(mission.id, 'completed');
+        await refreshAuth();
       } else {
         setStatus(mission.id, 'failed');
       }
