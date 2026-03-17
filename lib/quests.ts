@@ -24,6 +24,7 @@ export type QuestTarget = {
   url?: string;
   channelId?: string;
   defaultQuoteText?: string;
+  minBalance?: string;
 };
 
 export type QuestDef = {
