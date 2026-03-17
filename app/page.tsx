@@ -414,5 +414,116 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
               </div>
             </div>
           </div>
-// Force update Tue Mar 17 01:55:36 +04 2026
-// Built at Tue Mar 17 02:55:23 +04 2026
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Pilot Tab (Profile)
+function PilotTab({ user }: { user: any }) {
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!user) return null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest">
+        <span className="text-lg">🦀</span>
+        <span>PILOT PROFILE</span>
+        <div className="flex-1 h-px bg-[#ff1a1a]/30" />
+      </div>
+
+      {/* Pilot Card */}
+      <div className="mission-card text-center">
+        <div className="relative inline-block mb-4">
+          <img 
+            src={user.fcPfpUrl || '/default-avatar.png'} 
+            alt="" 
+            className="w-24 h-24 rounded-full border-4 border-[#ff1a1a] mx-auto"
+          />
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#ff1a1a] text-[#050508] px-3 py-1 rounded-full text-xs font-black">
+            PILOT
+          </div>
+        </div>
+        
+        <h2 className="text-xl font-black mb-1">@{user.fcUsername}</h2>
+        <p className="text-[#8a8a9a] text-xs font-mono mb-4">FID #{user.fcFid}</p>
+        
+        {user.fcPowerBadge && (
+          <div className="inline-flex items-center gap-2 bg-[#ff6b00]/20 text-[#ff6b00] px-3 py-1.5 rounded-full text-xs font-bold mb-4">
+            <span>⚡</span>
+            <span>POWER BADGE VERIFIED</span>
+          </div>
+        )}
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="mission-card text-center">
+          <div className="text-[#8a8a9a] text-xs font-mono mb-1">TOTAL XP</div>
+          <div className="text-[#ff6b00] font-black text-2xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>
+            {user.points || 0}
+          </div>
+        </div>
+        <div className="mission-card text-center">
+          <div className="text-[#8a8a9a] text-xs font-mono mb-1">MISSIONS</div>
+          <div className="text-[#00f0ff] font-black text-2xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>
+            {user.completions?.length || 0}
+          </div>
+        </div>
+        <div className="mission-card text-center">
+          <div className="text-[#8a8a9a] text-xs font-mono mb-1">WALLET</div>
+          <div className="text-[#39ff14] font-black text-lg" style={{ fontFamily: 'Press Start 2P, monospace' }}>
+            {user.linkedWallet ? 'LINKED' : 'NONE'}
+          </div>
+        </div>
+        <div className="mission-card text-center">
+          <div className="text-[#8a8a9a] text-xs font-mono mb-1">$TACHI</div>
+          <div className="text-[#ff1a1a] font-black text-2xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>
+            {mounted ? (user.tachiBalance || 0) : '---'}
+          </div>
+        </div>
+      </div>
+
+      {/* Wallet Section */}
+      <div className="mission-card">
+        <div className="text-[#00f0ff] text-xs font-mono mb-3 tracking-wider">/// WALLET STATUS ///</div>
+        {user.linkedWallet ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#39ff14]/20 flex items-center justify-center">
+                <span className="text-[#39ff14] text-lg">✓</span>
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-bold">Wallet Connected</div>
+                <div className="text-xs text-[#8a8a9a] font-mono">
+                  {user.linkedWallet.slice(0, 6)}...{user.linkedWallet.slice(-4)}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-4">
+            <div className="text-[#5a5a6a] text-sm mb-3">No wallet linked</div>
+            <p className="text-xs text-[#8a8a9a] font-mono mb-4">
+              Link your wallet to receive $TACHI airdrops
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Access Key */}
+      <div className="mission-card">
+        <div className="text-[#00f0ff] text-xs font-mono mb-2 tracking-wider">/// YOUR ACCESS KEY ///</div>
+        <div className="bg-[#050508] border border-[#1a1a24] rounded p-3 text-center">
+          <code className="text-[#ff1a1a] font-mono text-lg tracking-wider">{user.referralCode}</code>
+        </div>
+      </div>
+    </div>
+  );
+}
