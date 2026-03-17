@@ -176,6 +176,20 @@ export const QUESTS: QuestDef[] = [
     target: { url: 'https://x.com/smolekoma/status/2029672279416721648' },
     icon: '💙',
   },
+  {
+    id: 'tachi-hodl',
+    title: 'HODL $TACHI',
+    description: 'Hold at least 100 $TACHI tokens in your linked wallet',
+    platform: 'wallet',
+    action: 'link_wallet',
+    verification: 'wallet_signature',
+    points: 1000,
+    tachiReward: 0,
+    repeatable: false,
+    enabled: true,
+    target: { minBalance: '100' },
+    icon: '🦀',
+  },
 ];
 
 export function getQuest(id: string): QuestDef | undefined {
