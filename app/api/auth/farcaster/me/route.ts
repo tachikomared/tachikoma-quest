@@ -9,7 +9,15 @@ const quickAuth = createClient();
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 function getRequestHost(req: Request): string {
-  return new URL(APP_URL).host;
+  // Use the actual request host from headers for Mini App verification
+  const host = req.headers.get('host') || req.headers.get('x-forwarded-host');
+  if (host) return host;
+  // Fallback to APP_URL
+  try {
+    return new URL(APP_URL).host;
+  } catch {
+    return 'localhost:3000';
+  }
 }
 
 async function ensureUser(fid: number, neynarUser: NeynarUser | null): Promise<string> {

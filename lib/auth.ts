@@ -75,10 +75,11 @@ export async function requireCurrentUser(): Promise<CurrentUser> {
     };
   }
 
-  // Create new user if not exists
+  // Create new user if not exists - generate referral code in JS (no pgcrypto dependency)
+  const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
   const result = await sql`
     INSERT INTO users (fc_fid, fc_username, referral_code)
-    VALUES (${session.fid}, ${session.username ?? null}, encode(gen_random_bytes(4), 'hex'))
+    VALUES (${session.fid}, ${session.username ?? null}, ${referralCode})
     RETURNING id, fc_fid, fc_username
   `;
 
