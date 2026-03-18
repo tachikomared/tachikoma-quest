@@ -7,6 +7,9 @@ import { sdk } from '@farcaster/miniapp-sdk';
 import { TACHI_CONTRACT, ERC20_BALANCE_ABI, MOCK_REFERRAL_REWARDS, MOCK_LEADERBOARD } from '@/data/mocks';
 import { useReadContract } from 'wagmi';
 import { useMobileWriteContract } from '@/hooks/useMobileWallet';
+import { QuestReceiptModal } from '@/components/quest-receipt-modal';
+import { StreakIndicator, DailyQuestCard } from '@/components/streak-indicator';
+import { NotificationBell } from '@/components/notification-bell';
 
 const BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD';
 
@@ -30,6 +33,28 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<Tab>('missions');
   const user = auth.status === 'authenticated' ? auth.user : null;
   const isGuest = user?.fcFid === 0;
+  
+  // Streak state
+  const [streak, setStreak] = useState(0);
+  const [lastCheckIn, setLastCheckIn] = useState<string | undefined>();
+  const [completedToday, setCompletedToday] = useState(false);
+  
+  // Fetch streak data
+  useEffect(() => {
+    if (!user) return;
+    fetch('/api/me')
+      .then(r => r.json())
+      .then(d => {
+        if (d.user) {
+          setStreak(d.user.streakCount || 0);
+          setLastCheckIn(d.user.streakLastDate);
+          // Check if completed quest today
+          const today = new Date().toISOString().split('T')[0];
+          setCompletedToday(d.user.streakLastDate === today);
+        }
+      })
+      .catch(() => null);
+  }, [user?.id]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -76,6 +101,16 @@ export default function HomePage() {
             </div>
             {user && (
               <div className="flex items-center gap-2">
+                {/* Streak Indicator */}
+                <StreakIndicator 
+                  streak={streak} 
+                  lastCheckIn={lastCheckIn}
+                  isMiniApp={isMiniApp}
+                />
+                
+                {/* Notification Bell */}
+                <NotificationBell />
+                
                 {isGuest && (
                   <div className="bg-[#ff1a1a]/20 border border-[#ff1a1a] rounded px-2 py-1">
                     <span className="text-[10px] text-[#ff1a1a] font-bold">GUEST</span>
@@ -131,6 +166,10 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   const [missions, setMissions] = useState<any[]>([]);
   const [statuses, setStatuses] = useState<Record<string, MissionStatus>>({});
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+  const [receiptModal, setReceiptModal] = useState<{
+    isOpen: boolean;
+    quest: any;
+  }>({ isOpen: false, quest: null });
   const { connect, connectors, isPending: isConnecting } = useConnect();
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
@@ -243,6 +282,8 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
         setStatus(mission.id, 'completed');
         await refreshAuth();
         await refreshCompletions();
+        // Show receipt modal for sharing
+        setReceiptModal({ isOpen: true, quest: mission });
       } else {
         setStatus(mission.id, 'failed');
       }
@@ -272,6 +313,8 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
         setStatus(mission.id, 'completed');
         await refreshAuth();
         await refreshCompletions();
+        // Show receipt modal for sharing
+        setReceiptModal({ isOpen: true, quest: mission });
       } else {
         setStatus(mission.id, 'failed');
       }
@@ -326,6 +369,18 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Daily Quest / Streak Card */}
+      {user && (
+        <DailyQuestCard
+          streak={user.streakCount || 0}
+          completedToday={user.completedToday || false}
+          onComplete={() => {
+            // Scroll to missions or focus on them
+            document.querySelector('.mission-card')?.scrollIntoView({ behavior: 'smooth' });
+          }}
+        />
       )}
 
       {/* Mission Briefings */}
@@ -413,6 +468,15 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
           </div>
         );
       })}
+
+      {/* Quest Receipt Modal */}
+      <QuestReceiptModal
+        isOpen={receiptModal.isOpen}
+        onClose={() => setReceiptModal({ isOpen: false, quest: null })}
+        quest={receiptModal.quest}
+        user={user}
+        isMiniApp={isMiniApp}
+      />
     </div>
   );
 }

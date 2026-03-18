@@ -36,3 +36,17 @@ CREATE TABLE IF NOT EXISTS user_quest_completions (
 );
 
 CREATE INDEX idx_user_quest_completions_user_date ON user_quest_completions(user_id, completed_at DESC);
+
+-- Notifications Table
+CREATE TABLE IF NOT EXISTS notifications (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  body TEXT NOT NULL,
+  target_url TEXT,
+  read BOOLEAN DEFAULT false,
+  sent_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_notifications_user_read ON notifications(user_id, read);
+CREATE INDEX idx_notifications_sent ON notifications(sent_at DESC);
