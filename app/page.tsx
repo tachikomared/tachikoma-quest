@@ -641,8 +641,27 @@ function WarRoomTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
 // Enlist Tab (Referrals)
 function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   const [copied, setCopied] = useState(false);
+  const [stats, setStats] = useState({ enlisted: 0, active: 0, xpEarned: 0, recruits: [] as any[] });
+  const [statsLoading, setStatsLoading] = useState(false);
   const referralCode = user?.referralCode || 'NO-CODE';
   const referralLink = `${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${referralCode}`;
+
+  useEffect(() => {
+    if (!user) return;
+    setStatsLoading(true);
+    fetch('/api/referrals/stats')
+      .then(r => r.json())
+      .then(d => {
+        setStats({
+          enlisted: d.enlisted || 0,
+          active: d.active || 0,
+          xpEarned: d.xpEarned || 0,
+          recruits: d.recruits || [],
+        });
+      })
+      .catch(() => null)
+      .finally(() => setStatsLoading(false));
+  }, [user?.id]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(referralCode);
@@ -671,20 +690,26 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
       <div className="mission-card">
         <div className="grid grid-cols-3 gap-3 text-center mb-3">
           <div className="bg-[#050508] border border-[#1a1a24] rounded p-3">
-            <div className="text-[#ff6b00] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>0</div>
+            <div className="text-[#ff6b00] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>
+              {statsLoading ? '...' : stats.enlisted}
+            </div>
             <div className="text-[#5a5a6a] text-xs font-mono">ENLISTED</div>
           </div>
           <div className="bg-[#050508] border border-[#1a1a24] rounded p-3">
-            <div className="text-[#39ff14] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>0</div>
+            <div className="text-[#39ff14] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>
+              {statsLoading ? '...' : stats.active}
+            </div>
             <div className="text-[#5a5a6a] text-xs font-mono">ACTIVE</div>
           </div>
           <div className="bg-[#050508] border border-[#1a1a24] rounded p-3">
-            <div className="text-[#00f0ff] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>0</div>
+            <div className="text-[#00f0ff] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>
+              {statsLoading ? '...' : stats.xpEarned}
+            </div>
             <div className="text-[#5a5a6a] text-xs font-mono">XP EARNED</div>
           </div>
         </div>
         <div className="text-center text-xs text-[#8a8a9a] font-mono">
-          Earn <span className="text-[#ff6b00] font-bold">+200 XP</span> per active operative
+          Earn <span className="text-[#ff6b00] font-bold">+100 XP</span> per qualified operative
         </div>
       </div>
 
@@ -712,36 +737,39 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
         </div>
       </div>
 
-      {/* Milestones */}
+      {/* Recruits */}
       <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest">
-        <span className="text-lg">🎯</span>
-        <span>CAMPAIGN MILESTONES</span>
+        <span className="text-lg">👥</span>
+        <span>NEW RECRUITS</span>
         <div className="flex-1 h-px bg-[#ff1a1a]/30" />
       </div>
-      
-      {MOCK_REFERRAL_REWARDS.map((reward) => (
-        <div key={reward.milestone} className="mission-card opacity-60">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded bg-[#1a1a24] border border-[#252535] flex items-center justify-center text-2xl">
-              🔒
-            </div>
-            <div className="flex-1">
-              <p className="font-black text-sm">{reward.label}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-[#ff6b00] text-xs font-bold">+{reward.xp} XP</span>
-                <span className="text-[#5a5a6a]">•</span>
-                <span className="text-[#00f0ff] text-xs">🦀 {reward.tachi} $TACHI</span>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-[#5a5a6a] text-xs font-mono">0/{reward.milestone}</div>
-              <div className="progress-container w-16 mt-1">
-                <div className="progress-bar" style={{ width: '0%' }} />
-              </div>
-            </div>
-          </div>
+
+      {stats.recruits.length === 0 ? (
+        <div className="mission-card text-center text-xs text-[#5a5a6a] font-mono">
+          No recruits yet. Share your access key to enlist operatives.
         </div>
-      ))}
+      ) : (
+        <div className="bg-[#0a0a0f] border border-[#1a1a24] rounded-lg overflow-hidden">
+          {stats.recruits.map((r, i) => (
+            <div key={r.id} className={`flex items-center gap-3 p-3 ${i !== 0 ? 'border-t border-[#1a1a24]' : ''}`}>
+              <div className="w-8 h-8 rounded bg-[#1a1a24] flex items-center justify-center text-sm">
+                {r.fc_username ? r.fc_username[0]?.toUpperCase() : '👤'}
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-bold">
+                  {r.fc_username ? `@${r.fc_username}` : 'Guest Pilot'}
+                </div>
+                <div className="text-[10px] text-[#5a5a6a] font-mono">
+                  {r.fc_fid ? `FID ${r.fc_fid}` : 'WALLET MODE'}
+                </div>
+              </div>
+              <div className="text-[10px] text-[#5a5a6a] font-mono">
+                {new Date(r.created_at).toLocaleDateString()}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
