@@ -36,6 +36,15 @@ export default function HomePage() {
     }).catch(() => null);
   }, [auth.status]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab === 'warroom' || tab === 'missions' || tab === 'enlist' || tab === 'pilot') {
+      setActiveTab(tab as Tab);
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#050508] text-[#f0f0f0] crt-flicker">
       {/* Warning Stripe Header */}
@@ -522,18 +531,19 @@ function WarRoomTab({ user }: { user: any }) {
               const rank = holders.findIndex(h => h.username === user.fcUsername) + 1;
               const holder = holders.find(h => h.username === user.fcUsername);
               const tier = holder ? getHolderTier(holder.balance, rank) : { label: 'CRAB' };
-              const text = `🦀 TACHI QUEST // Rank #${rank || '???'} ${tier.label} // Holding ${holder?.balance || '0'} $TACHI // Join the crab army!`;
+              const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}?tab=warroom`;
+              const text = `🦀 Check out the $TACHI Holders Leaderboard! Rank #${rank || '???'} ${tier.label} // Holding ${holder?.balance || '0'} $TACHI`;
               
               if (typeof window !== 'undefined' && (window as any).sdk?.actions?.composeCast) {
-                await (window as any).sdk.actions.composeCast({ text });
+                await (window as any).sdk.actions.composeCast({ text, embeds: [shareUrl] });
               } else {
-                const shareUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`;
-                window.open(shareUrl, '_blank');
+                const wcUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(shareUrl)}`;
+                window.open(wcUrl, '_blank');
               }
             }}
             className="mt-4 mecha-button w-full text-xs bg-[#ff1a1a]/10 border-[#ff1a1a]"
           >
-            📡 BROADCAST RANK
+            📡 BROADCAST LEADERBOARD
           </button>
         )}
       </div>
