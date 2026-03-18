@@ -123,9 +123,9 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
   }
 
   // Get user ID
-  const userRows = await sql`
-    SELECT id FROM users WHERE fc_fid = ${current.fid} LIMIT 1
-  `;
+  const userRows = current.fid === 0
+    ? await sql`SELECT id FROM users WHERE id = ${current.id} LIMIT 1`
+    : await sql`SELECT id FROM users WHERE fc_fid = ${current.fid} LIMIT 1`;
 
   if (!userRows.length) {
     return NextResponse.json(
