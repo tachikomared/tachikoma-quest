@@ -7,8 +7,6 @@ const DECIMALS = 18;
 
 export const dynamic = 'force-dynamic';
 
-const DECIMALS = 18;
-
 function formatBalance(raw: string) {
   const value = Number(raw) / Math.pow(10, DECIMALS);
   return value.toFixed(4);
