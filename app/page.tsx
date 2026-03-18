@@ -149,7 +149,14 @@ export default function HomePage() {
 
       {/* Main Content */}
       <main className="max-w-lg mx-auto px-4 py-4 pb-24 damage-texture">
-        {activeTab === 'missions' && <MissionsTab user={user} isMiniApp={isMiniApp} />}
+        {activeTab === 'missions' && (
+          <MissionsTab
+            user={user}
+            isMiniApp={isMiniApp}
+            streak={streak}
+            completedToday={completedToday}
+          />
+        )}
         {activeTab === 'warroom' && <WarRoomTab user={user} isMiniApp={isMiniApp} />}
         {activeTab === 'enlist' && <EnlistTab user={user} isMiniApp={isMiniApp} />}
         {activeTab === 'pilot' && <PilotTab user={user} />}
@@ -162,7 +169,17 @@ export default function HomePage() {
 }
 
 // Missions Tab Component
-function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
+function MissionsTab({
+  user,
+  isMiniApp,
+  streak,
+  completedToday,
+}: {
+  user: any;
+  isMiniApp: boolean;
+  streak: number;
+  completedToday: boolean;
+}) {
   const [missions, setMissions] = useState<any[]>([]);
   const [statuses, setStatuses] = useState<Record<string, MissionStatus>>({});
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
