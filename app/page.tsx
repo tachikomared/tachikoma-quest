@@ -425,6 +425,114 @@ function WarRoomTab({ user }: { user: any }) {
 
   return (
     <div className="space-y-4">
+      <div className="mission-card">
+        <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest mb-3">
+          <span className="text-lg">🦀</span>
+          <span>TOKEN HOLDERS</span>
+          <div className="flex-1 h-px bg-[#ff1a1a]/30" />
+        </div>
+
+        {/* Milestone legend */}
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {[
+            { label: 'CRAB KING', color: 'text-[#ff6b00] border-[#ff6b00]/50' },
+            { label: 'WHALE', color: 'text-[#00f0ff] border-[#00f0ff]/50' },
+            { label: 'SHARK', color: 'text-[#39ff14] border-[#39ff14]/50' },
+            { label: 'SQUID', color: 'text-[#ff1a1a] border-[#ff1a1a]/50' },
+          ].map((tier) => (
+            <span key={tier.label} className={`text-[8px] px-1.5 py-0.5 border rounded ${tier.color}`}>
+              {tier.label}
+            </span>
+          ))}
+        </div>
+
+        {holders.length === 0 ? (
+          <div className="text-xs text-[#5a5a6a] font-mono">NO HOLDER DATA YET</div>
+        ) : (
+          <div className="space-y-2">
+            {holders.map((holder, i) => {
+              const tier = getHolderTier(holder.balance, i + 1);
+              const displayName = holder.username
+                ? `@${holder.username}`
+                : holder.ens || `${holder.address?.slice(0, 6)}...${holder.address?.slice(-4)}`;
+
+              return (
+                <a
+                  key={`${holder.address}-${i}`}
+                  href={`https://basescan.org/address/${holder.address}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`flex items-center gap-3 p-2 border rounded ${
+                    holder.username === user?.fcUsername ? 'bg-[#ff1a1a]/10 border-[#ff1a1a]/30' : 'bg-[#050508] border-[#1a1a24]'
+                  } hover:border-[#ff1a1a]/40 transition-colors`}
+                >
+                  <div className="flex flex-col items-center">
+                    <div className={`w-7 h-7 rounded border-2 flex items-center justify-center font-black text-[10px] ${
+                      i < 3 ? 'text-[#ff6b00] border-[#ff6b00]' : 'text-[#5a5a6a] border-[#1a1a24]'
+                    }`}>
+                      {i + 1}
+                    </div>
+                  </div>
+                  <div className="w-8 h-8 rounded bg-[#1a1a24] border border-[#252535] overflow-hidden">
+                    {holder.pfpUrl ? (
+                      <img
+                        src={holder.pfpUrl}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs">?</div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold truncate">
+                        {displayName}
+                      </span>
+                      <span className={`text-[7px] px-1 py-0.5 border rounded ${tier.color}`}>
+                        {tier.label}
+                      </span>
+                    </div>
+                    <div className="text-[9px] text-[#5a5a6a] font-mono">
+                      {holder.fid ? `FID ${holder.fid}` : 'UNLINKED WALLET'}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[#39ff14] font-black text-xs" style={{ fontFamily: 'Press Start 2P, monospace' }}>
+                      {Number(holder.balance).toFixed(2)}
+                    </div>
+                    <div className="text-[9px] text-[#5a5a6a] font-mono">$TACHI</div>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Frame v2 Share Button */}
+        {user && (
+          <button
+            onClick={async () => {
+              const rank = holders.findIndex(h => h.username === user.fcUsername) + 1;
+              const holder = holders.find(h => h.username === user.fcUsername);
+              const tier = holder ? getHolderTier(holder.balance, rank) : { label: 'CRAB' };
+              const text = `🦀 TACHI QUEST // Rank #${rank || '???'} ${tier.label} // Holding ${holder?.balance || '0'} $TACHI // Join the crab army!`;
+              
+              if (typeof window !== 'undefined' && (window as any).sdk?.actions?.composeCast) {
+                await (window as any).sdk.actions.composeCast({ text });
+              } else {
+                const shareUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`;
+                window.open(shareUrl, '_blank');
+              }
+            }}
+            className="mt-4 mecha-button w-full text-xs bg-[#ff1a1a]/10 border-[#ff1a1a]"
+          >
+            📡 BROADCAST RANK
+          </button>
+        )}
+      </div>
+
       <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest">
         <span className="text-lg">📊</span>
         <span>TOP OPERATIVES</span>
@@ -474,107 +582,6 @@ function WarRoomTab({ user }: { user: any }) {
           </div>
         </div>
       )}
-
-      <div className="mission-card">
-        <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest mb-3">
-          <span className="text-lg">🦀</span>
-          <span>TOKEN HOLDERS</span>
-          <div className="flex-1 h-px bg-[#ff1a1a]/30" />
-        </div>
-
-        {/* Milestone legend */}
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          {[
-            { label: 'CRAB KING', color: 'text-[#ff6b00] border-[#ff6b00]/50' },
-            { label: 'WHALE', color: 'text-[#00f0ff] border-[#00f0ff]/50' },
-            { label: 'SHARK', color: 'text-[#39ff14] border-[#39ff14]/50' },
-            { label: 'SQUID', color: 'text-[#ff1a1a] border-[#ff1a1a]/50' },
-          ].map((tier) => (
-            <span key={tier.label} className={`text-[8px] px-1.5 py-0.5 border rounded ${tier.color}`}>
-              {tier.label}
-            </span>
-          ))}
-        </div>
-
-        {holders.length === 0 ? (
-          <div className="text-xs text-[#5a5a6a] font-mono">NO HOLDER DATA YET</div>
-        ) : (
-          <div className="space-y-2">
-            {holders.map((holder, i) => {
-              const tier = getHolderTier(holder.balance, i + 1);
-              return (
-                <div
-                  key={`${holder.fid}-${i}`}
-                  className={`flex items-center gap-3 p-2 border rounded ${
-                    holder.username === user?.fcUsername ? 'bg-[#ff1a1a]/10 border-[#ff1a1a]/30' : 'bg-[#050508] border-[#1a1a24]'
-                  }`}
-                >
-                  <div className="flex flex-col items-center">
-                    <div className={`w-7 h-7 rounded border-2 flex items-center justify-center font-black text-[10px] ${
-                      i < 3 ? 'text-[#ff6b00] border-[#ff6b00]' : 'text-[#5a5a6a] border-[#1a1a24]'
-                    }`}>
-                      {i + 1}
-                    </div>
-                  </div>
-                  <div className="w-8 h-8 rounded bg-[#1a1a24] border border-[#252535] overflow-hidden">
-                    {holder.pfpUrl ? (
-                      <img
-                        src={holder.pfpUrl}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xs">?</div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold truncate">
-                        {holder.username ? `@${holder.username}` : `${holder.address?.slice(0, 6)}...${holder.address?.slice(-4)}`}
-                      </span>
-                      <span className={`text-[7px] px-1 py-0.5 border rounded ${tier.color}`}>
-                        {tier.label}
-                      </span>
-                    </div>
-                    <div className="text-[9px] text-[#5a5a6a] font-mono">
-                      {holder.fid ? `FID ${holder.fid}` : 'UNLINKED WALLET'}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[#39ff14] font-black text-xs" style={{ fontFamily: 'Press Start 2P, monospace' }}>
-                      {Number(holder.balance).toFixed(2)}
-                    </div>
-                    <div className="text-[9px] text-[#5a5a6a] font-mono">$TACHI</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Frame v2 Share Button */}
-        {user && (
-          <button
-            onClick={async () => {
-              const rank = holders.findIndex(h => h.username === user.fcUsername) + 1;
-              const holder = holders.find(h => h.username === user.fcUsername);
-              const tier = holder ? getHolderTier(holder.balance, rank) : { label: 'CRAB' };
-              const text = `🦀 TACHI QUEST // Rank #${rank || '???'} ${tier.label} // Holding ${holder?.balance || '0'} $TACHI // Join the crab army!`;
-              
-              if (typeof window !== 'undefined' && (window as any).sdk?.actions?.composeCast) {
-                await (window as any).sdk.actions.composeCast({ text });
-              } else {
-                const shareUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`;
-                window.open(shareUrl, '_blank');
-              }
-            }}
-            className="mt-4 mecha-button w-full text-xs bg-[#ff1a1a]/10 border-[#ff1a1a]"
-          >
-            📡 BROADCAST RANK
-          </button>
-        )}
-      </div>
     </div>
   );
 }

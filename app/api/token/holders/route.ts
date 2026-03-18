@@ -45,13 +45,24 @@ export async function GET() {
       linked.map((u: any) => [u.wallet_address?.toLowerCase(), u])
     );
 
-    const holders = items.slice(0, 20).map((item: any, index: number) => {
+    const excluded = new Set([
+      // Uniswap V4 Pool Manager (not a user holder)
+      '0x498581ff718922c3f8e6a244956af099b2652b2b',
+    ]);
+
+    const filtered = items.filter((item: any) => {
+      const address = item.address?.hash?.toLowerCase();
+      return address && !excluded.has(address);
+    });
+
+    const holders = filtered.slice(0, 20).map((item: any, index: number) => {
       const address = item.address?.hash;
       const linkedUser = linkedMap.get(address?.toLowerCase());
 
       return {
         rank: index + 1,
         address,
+        ens: item.address?.ens_domain_name || null,
         balance: formatBalance(item.value || '0'),
         rawBalance: item.value || '0',
         fid: linkedUser?.fc_fid || null,
