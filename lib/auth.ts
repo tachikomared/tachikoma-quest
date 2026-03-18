@@ -98,33 +98,60 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   }
 }
 
-export async function getFullUser(fid: number): Promise<FullUser | null> {
+export async function getFullUser(fid: number, userId?: string): Promise<FullUser | null> {
   try {
-    const rows = await sql`
-      SELECT 
-        u.id,
-        u.fc_fid,
-        u.fc_username,
-        u.fc_display_name,
-        u.fc_pfp_url,
-        u.fc_bio,
-        u.fc_score,
-        u.fc_followers,
-        u.fc_following,
-        u.fc_power_badge,
-        u.referral_code,
-        u.referred_by_code,
-        MAX(w.address) AS wallet_address,
-        COALESCE(SUM(qc.points_awarded), 0)::int AS points
-      FROM users u
-      LEFT JOIN wallets w ON w.user_id = u.id AND w.verified = true
-      LEFT JOIN quest_claims qc ON qc.user_id = u.id
-      WHERE u.fc_fid = ${fid}
-      GROUP BY u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, 
-               u.fc_bio, u.fc_score, u.fc_followers, u.fc_following, u.fc_power_badge,
-               u.referral_code, u.referred_by_code
-      LIMIT 1
-    `;
+    // For guests (fid = 0), query by userId instead
+    const rows = fid === 0 && userId
+      ? await sql`
+          SELECT 
+            u.id,
+            u.fc_fid,
+            u.fc_username,
+            u.fc_display_name,
+            u.fc_pfp_url,
+            u.fc_bio,
+            u.fc_score,
+            u.fc_followers,
+            u.fc_following,
+            u.fc_power_badge,
+            u.referral_code,
+            u.referred_by_code,
+            MAX(w.address) AS wallet_address,
+            COALESCE(SUM(qc.points_awarded), 0)::int AS points
+          FROM users u
+          LEFT JOIN wallets w ON w.user_id = u.id AND w.verified = true
+          LEFT JOIN quest_claims qc ON qc.user_id = u.id
+          WHERE u.id = ${userId}
+          GROUP BY u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, 
+                   u.fc_bio, u.fc_score, u.fc_followers, u.fc_following, u.fc_power_badge,
+                   u.referral_code, u.referred_by_code
+          LIMIT 1
+        `
+      : await sql`
+          SELECT 
+            u.id,
+            u.fc_fid,
+            u.fc_username,
+            u.fc_display_name,
+            u.fc_pfp_url,
+            u.fc_bio,
+            u.fc_score,
+            u.fc_followers,
+            u.fc_following,
+            u.fc_power_badge,
+            u.referral_code,
+            u.referred_by_code,
+            MAX(w.address) AS wallet_address,
+            COALESCE(SUM(qc.points_awarded), 0)::int AS points
+          FROM users u
+          LEFT JOIN wallets w ON w.user_id = u.id AND w.verified = true
+          LEFT JOIN quest_claims qc ON qc.user_id = u.id
+          WHERE u.fc_fid = ${fid}
+          GROUP BY u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, 
+                   u.fc_bio, u.fc_score, u.fc_followers, u.fc_following, u.fc_power_badge,
+                   u.referral_code, u.referred_by_code
+          LIMIT 1
+        `;
 
     if (!rows.length) return null;
 

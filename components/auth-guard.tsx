@@ -3,6 +3,7 @@
 import { useAuth } from '@/app/providers';
 import { useConnect, useAccount, useSignMessage } from 'wagmi';
 import { sdk } from '@farcaster/miniapp-sdk';
+import { useState } from 'react';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { auth, isMiniApp, refreshAuth } = useAuth();
@@ -40,26 +41,60 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // Show unauthenticated state
   if (auth.status === 'unauthenticated') {
-    return <UnauthenticatedScreen isMiniApp={isMiniApp} />;
+    return <UnauthenticatedScreen isMiniApp={isMiniApp} onGuestLogin={refreshAuth} />;
   }
 
   // Authenticated - render children
   return <>{children}</>;
 }
 
-function UnauthenticatedScreen({ isMiniApp }: { isMiniApp: boolean }) {
-  const { connect, connectors } = useConnect();
-  const { isConnected } = useAccount();
+function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean; onGuestLogin: () => void }) {
+  const { connect, connectors, isPending: isConnecting } = useConnect();
+  const { isConnected, address } = useAccount();
+  const { signMessageAsync } = useSignMessage();
+  const [isGuestLoggingIn, setIsGuestLoggingIn] = useState(false);
 
   const handleConnectFarcaster = async () => {
     if (isMiniApp) {
-      // In Mini App - this shouldn't happen as auth is automatic
-      // Try reloading the page to trigger auth again
       window.location.reload();
     } else {
-      // On web - we need to implement Sign In With Neynar
-      // For now, show instructions
       alert('Please open this app in Farcaster (Warpcast) for the best experience');
+    }
+  };
+
+  const handleGuestLogin = async () => {
+    if (!address) {
+      // Connect wallet first
+      if (connectors[0]) {
+        connect({ connector: connectors[0] });
+      }
+      return;
+    }
+
+    setIsGuestLoggingIn(true);
+    try {
+      // Sign message to verify wallet ownership
+      const message = `TACHI Quest Guest Login\n\nWallet: ${address}\nTimestamp: ${Date.now()}`;
+      const signature = await signMessageAsync({ message });
+
+      // Create guest session
+      const res = await fetch('/api/auth/guest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, signature, message }),
+      });
+
+      if (res.ok) {
+        onGuestLogin();
+      } else {
+        const err = await res.text();
+        alert('Guest login failed: ' + err);
+      }
+    } catch (e: any) {
+      console.error('[guest] Login error:', e);
+      alert('Guest login failed: ' + (e.message || 'Unknown error'));
+    } finally {
+      setIsGuestLoggingIn(false);
     }
   };
 
@@ -92,9 +127,38 @@ function UnauthenticatedScreen({ isMiniApp }: { isMiniApp: boolean }) {
               Connect with Farcaster
             </button>
 
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-700" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="px-2 bg-gray-900 text-gray-500">or</span>
+              </div>
+            </div>
+
+            {!isConnected ? (
+              <button
+                onClick={() => connectors[0] && connect({ connector: connectors[0] })}
+                disabled={isConnecting}
+                className="w-full bg-[#1a1a24] hover:bg-[#252535] border border-[#ff1a1a]/30 text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <span>💎</span>
+                {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+              </button>
+            ) : (
+              <button
+                onClick={handleGuestLogin}
+                disabled={isGuestLoggingIn}
+                className="w-full bg-[#ff1a1a]/20 hover:bg-[#ff1a1a]/30 border border-[#ff1a1a] text-[#ff1a1a] font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <span>🎮</span>
+                {isGuestLoggingIn ? 'Logging in...' : 'Continue as Guest'}
+              </button>
+            )}
+
             {isConnected && (
               <p className="text-xs text-green-400 text-center">
-                ✓ Wallet connected
+                ✓ Wallet connected: {address?.slice(0, 6)}...{address?.slice(-4)}
               </p>
             )}
 

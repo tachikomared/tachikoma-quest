@@ -29,6 +29,7 @@ export default function HomePage() {
   const { auth, isMiniApp } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('missions');
   const user = auth.status === 'authenticated' ? auth.user : null;
+  const isGuest = user?.fcFid === 0;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -74,10 +75,17 @@ export default function HomePage() {
               </div>
             </div>
             {user && (
-              <div className="bg-[#1a1a24] border border-[#ff1a1a]/30 rounded px-3 py-1.5">
-                <div className="text-xs text-[#8a8a9a] font-mono">XP</div>
-                <div className="text-[#ff6b00] font-black text-lg" style={{ fontFamily: 'Press Start 2P, monospace' }}>
-                  {user.points?.toString().padStart(5, '0') || '00000'}
+              <div className="flex items-center gap-2">
+                {isGuest && (
+                  <div className="bg-[#ff1a1a]/20 border border-[#ff1a1a] rounded px-2 py-1">
+                    <span className="text-[10px] text-[#ff1a1a] font-bold">GUEST</span>
+                  </div>
+                )}
+                <div className="bg-[#1a1a24] border border-[#ff1a1a]/30 rounded px-3 py-1.5">
+                  <div className="text-xs text-[#8a8a9a] font-mono">XP</div>
+                  <div className="text-[#ff6b00] font-black text-lg" style={{ fontFamily: 'Press Start 2P, monospace' }}>
+                    {user.points?.toString().padStart(5, '0') || '00000'}
+                  </div>
                 </div>
               </div>
             )}
@@ -801,10 +809,14 @@ function PilotTab({ user }: { user: any }) {
           </div>
         </div>
         
-        <h2 className="text-xl font-black mb-1">@{user.fcUsername}</h2>
-        <p className="text-[#8a8a9a] text-xs font-mono mb-4">FID #{user.fcFid}</p>
+        <h2 className="text-xl font-black mb-1">
+          {user.fcFid === 0 ? '👤 Guest Pilot' : `@${user.fcUsername}`}
+        </h2>
+        <p className="text-[#8a8a9a] text-xs font-mono mb-4">
+          {user.fcFid === 0 ? 'WALLET MODE' : `FID #${user.fcFid}`}
+        </p>
         
-        {user.fcPowerBadge && (
+        {user.fcFid !== 0 && user.fcPowerBadge && (
           <div className="inline-flex items-center gap-2 bg-[#ff6b00]/20 text-[#ff6b00] px-3 py-1.5 rounded-full text-xs font-bold mb-4">
             <span>⚡</span>
             <span>POWER BADGE VERIFIED</span>
