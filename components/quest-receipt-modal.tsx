@@ -13,7 +13,7 @@ interface QuestReceiptModalProps {
     icon: string;
   };
   user: {
-    username: string;
+    fcUsername?: string | null;
     points: number;
     referralCode: string;
   };
@@ -28,7 +28,7 @@ export function QuestReceiptModal({ isOpen, onClose, quest, user, isMiniApp }: Q
 
   const shareText = `Completed "${quest.title}" in TACHI Quest ⚔️\n\n+${quest.points} XP earned!\n\nJoin the mission: https://tachi-quest.vercel.app?ref=${user.referralCode}`;
 
-  const handleShare = async () => {
+  const handleShareFarcaster = async () => {
     setSharing(true);
     try {
       if (isMiniApp && sdk?.actions?.composeCast) {
@@ -37,15 +37,22 @@ export function QuestReceiptModal({ isOpen, onClose, quest, user, isMiniApp }: Q
           embeds: ['https://tachi-quest.vercel.app'],
         });
       } else {
-        // Web fallback
-        const tweetText = encodeURIComponent(shareText);
-        window.open(`https://twitter.com/intent/tweet?text=${tweetText}`, '_blank');
+        // Browser: open Warpcast compose
+        const encodedText = encodeURIComponent(shareText);
+        const encodedEmbed = encodeURIComponent('https://tachi-quest.vercel.app');
+        const wcUrl = `https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`;
+        window.open(wcUrl, '_blank');
       }
     } catch (e) {
       console.error('Share failed:', e);
     } finally {
       setSharing(false);
     }
+  };
+
+  const handleShareX = async () => {
+    const tweetText = encodeURIComponent(shareText);
+    window.open(`https://twitter.com/intent/tweet?text=${tweetText}`, '_blank');
   };
 
   const handleCopy = () => {
@@ -88,19 +95,27 @@ export function QuestReceiptModal({ isOpen, onClose, quest, user, isMiniApp }: Q
           {/* Rank Badge */}
           <div className="flex items-center justify-center gap-2 py-2">
             <span className="text-2xl">🦀</span>
-            <span className="text-sm text-[#8a8a9a] font-mono">@{user.username || 'PILOT'}</span>
+            <span className="text-sm text-[#8a8a9a] font-mono">@{user.fcUsername || 'PILOT'}</span>
           </div>
         </div>
 
         {/* Actions */}
         <div className="p-4 border-t border-[#1a1a24] space-y-2">
           <button
-            onClick={handleShare}
+            onClick={handleShareFarcaster}
             disabled={sharing}
-            className="w-full bg-[#ff1a1a] hover:bg-[#ff1a1a]/80 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+            className="w-full bg-[#9a4dff] hover:bg-[#9a4dff]/80 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
           >
-            <span>📢</span>
-            {sharing ? 'Opening...' : isMiniApp ? 'Share to Farcaster' : 'Share on X'}
+            <span>🟪</span>
+            {sharing ? 'Opening...' : 'Share on Farcaster'}
+          </button>
+
+          <button
+            onClick={handleShareX}
+            className="w-full bg-[#1da1f2] hover:bg-[#1da1f2]/80 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
+          >
+            <span>𝕏</span>
+            Share on X
           </button>
 
           <button

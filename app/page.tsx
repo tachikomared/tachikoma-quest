@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/app/providers';
-import { useConnect, useAccount, useSignMessage } from 'wagmi';
+import { useConnect, useAccount, useSignMessage, useDisconnect } from 'wagmi';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { TACHI_CONTRACT, ERC20_BALANCE_ABI, MOCK_REFERRAL_REWARDS, MOCK_LEADERBOARD } from '@/data/mocks';
 import { useReadContract } from 'wagmi';
@@ -374,8 +374,8 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
       {/* Daily Quest / Streak Card */}
       {user && (
         <DailyQuestCard
-          streak={user.streakCount || 0}
-          completedToday={user.completedToday || false}
+          streak={streak}
+          completedToday={completedToday}
           onComplete={() => {
             // Scroll to missions or focus on them
             document.querySelector('.mission-card')?.scrollIntoView({ behavior: 'smooth' });
@@ -863,6 +863,7 @@ function PilotTab({ user }: { user: any }) {
   const { address } = useAccount();
   const [fastBalance, setFastBalance] = useState<string>('0');
   const [fastBalanceLoading, setFastBalanceLoading] = useState<boolean>(false);
+  const { disconnect } = useDisconnect();
   
   // Read real $TACHI balance from blockchain
   const { data: tachiBalance } = useReadContract({
@@ -979,6 +980,20 @@ function PilotTab({ user }: { user: any }) {
                 </div>
               </div>
             </div>
+            <button
+              onClick={async () => {
+                try {
+                  disconnect();
+                  await fetch('/api/auth/logout', { method: 'POST' });
+                  window.location.reload();
+                } catch (e) {
+                  console.error('Disconnect failed:', e);
+                }
+              }}
+              className="w-full bg-[#ff1a1a]/20 border border-[#ff1a1a] text-[#ff1a1a] font-bold py-2 rounded-lg text-xs"
+            >
+              DISCONNECT WALLET + LOGOUT
+            </button>
           </div>
         ) : (
           <div className="text-center py-4">
