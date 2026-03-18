@@ -735,6 +735,8 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
 function PilotTab({ user }: { user: any }) {
   const [mounted, setMounted] = useState(false);
   const { address } = useAccount();
+  const [fastBalance, setFastBalance] = useState<string>('0');
+  const [fastBalanceLoading, setFastBalanceLoading] = useState<boolean>(false);
   
   // Read real $TACHI balance from blockchain
   const { data: tachiBalance } = useReadContract({
@@ -751,10 +753,22 @@ function PilotTab({ user }: { user: any }) {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!address) return;
+    setFastBalanceLoading(true);
+    fetch('/api/token/balance')
+      .then(r => r.json())
+      .then(d => {
+        if (d?.formattedBalance) setFastBalance(d.formattedBalance);
+      })
+      .catch(() => null)
+      .finally(() => setFastBalanceLoading(false));
+  }, [address]);
+
   if (!user) return null;
 
   // Format balance (18 decimals)
-  const formattedBalance = tachiBalance ? (Number(tachiBalance) / 1e18).toFixed(2) : '0';
+  const formattedBalance = tachiBalance ? (Number(tachiBalance) / 1e18).toFixed(2) : (fastBalance || '0');
 
   return (
     <div className="space-y-4">
