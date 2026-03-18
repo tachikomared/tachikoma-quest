@@ -1001,18 +1001,15 @@ function TachiBurnSection({ balance, displayBalance }: { balance: string; displa
         address: TACHI_CONTRACT as `0x${string}`,
         abi: [
           {
-            inputs: [
-              { name: 'to', type: 'address' },
-              { name: 'value', type: 'uint256' },
-            ],
-            name: 'transfer',
-            outputs: [{ name: '', type: 'bool' }],
+            inputs: [{ name: 'amount', type: 'uint256' }],
+            name: 'burn',
+            outputs: [],
             stateMutability: 'nonpayable',
             type: 'function',
           },
         ],
-        functionName: 'transfer',
-        args: [BURN_ADDRESS, units],
+        functionName: 'burn',
+        args: [units],
       });
       setStatus('success');
       setAmount('');
