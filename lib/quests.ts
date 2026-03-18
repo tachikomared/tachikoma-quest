@@ -88,6 +88,68 @@ export type ReferralReward = {
   claimed: boolean;
 };
 
+// Community Burn Quests (for wrapper contract)
+export const COMMUNITY_BURN_QUESTS: QuestDef[] = [
+  {
+    id: 'community-burn-bronze',
+    title: 'Community Burner // Bronze',
+    description: 'Burn 10,000+ $TACHI via community burner',
+    platform: 'wallet',
+    action: 'link_wallet',
+    verification: 'wallet_burn',
+    points: 1000,
+    tachiReward: 0,
+    repeatable: false,
+    enabled: true,
+    target: { minBalance: '10000' },
+    icon: '🔥',
+  },
+  {
+    id: 'community-burn-silver',
+    title: 'Community Burner // Silver',
+    description: 'Burn 100,000+ $TACHI via community burner',
+    platform: 'wallet',
+    action: 'link_wallet',
+    verification: 'wallet_burn',
+    points: 2500,
+    tachiReward: 0,
+    repeatable: false,
+    enabled: true,
+    target: { minBalance: '100000' },
+    icon: '🔥🔥',
+  },
+  {
+    id: 'community-burn-gold',
+    title: 'Community Burner // Gold',
+    description: 'Burn 1,000,000+ $TACHI via community burner',
+    platform: 'wallet',
+    action: 'link_wallet',
+    verification: 'wallet_burn',
+    points: 10000,
+    tachiReward: 0,
+    repeatable: false,
+    enabled: true,
+    target: { minBalance: '1000000' },
+    icon: '🔥🔥🔥',
+  },
+];
+
+// Daily streak quest
+export const DAILY_QUEST: QuestDef = {
+  id: 'daily-checkin',
+  title: 'Daily Check-in',
+  description: 'Complete any quest today to keep your streak alive!',
+  platform: 'farcaster',
+  action: 'open_external',
+  verification: 'manual_open',
+  points: 50,
+  tachiReward: 0,
+  repeatable: true,
+  enabled: true,
+  target: {},
+  icon: '🔥',
+};
+
 export const QUESTS: QuestDef[] = [
   {
     id: 'fc-follow-smolekoma',
