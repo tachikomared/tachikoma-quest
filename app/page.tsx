@@ -931,12 +931,3 @@ function TachiTransferSection({ balance }: { balance: string }) {
     </div>
   );
 }
-     <div className="text-xs text-[#39ff14] font-mono text-center">✓ TRANSFER INITIATED</div>
-        )}
-        {status === 'error' && (
-          <div className="text-xs text-[#ff1a1a] font-mono text-center">✗ TRANSFER FAILED</div>
-        )}
-      </div>
-    </div>
-  );
-}
