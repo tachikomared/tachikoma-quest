@@ -10,7 +10,7 @@ const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
 export async function POST(req: Request) {
   try {
     const user = await requireCurrentUser();
-    if (!user || user.fcFid === 0) {
+    if (!user || user.fid === 0) {
       return NextResponse.json({ ok: false, error: 'Not a Farcaster user' }, { status: 400 });
     }
 
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
         'api_key': NEYNAR_API_KEY || '',
       },
       body: JSON.stringify({
-        target_fid: user.fcFid,
+        target_fid: user.fid,
         title,
         body,
         target_url: targetUrl || 'https://tachi-quest.vercel.app',
