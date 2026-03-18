@@ -391,7 +391,6 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
 function WarRoomTab({ user }: { user: any }) {
   const [operatives, setOperatives] = useState<any[]>([]);
   const [holders, setHolders] = useState<any[]>([]);
-  const [holderMeta, setHolderMeta] = useState<{ updatedAt?: string; totalHolders?: number }>({});
 
   useEffect(() => {
     fetch('/api/leaderboard')
@@ -400,10 +399,7 @@ function WarRoomTab({ user }: { user: any }) {
 
     fetch('/api/token/holders')
       .then(r => r.json())
-      .then(d => {
-        setHolders(d.holders || []);
-        setHolderMeta({ updatedAt: d.updatedAt, totalHolders: d.totalHolders });
-      })
+      .then(d => setHolders(d.holders || []))
       .catch(() => setHolders([]));
   }, []);
 
@@ -425,11 +421,7 @@ function WarRoomTab({ user }: { user: any }) {
     return { label: 'CRAB', color: 'text-[#5a5a6a] border-[#5a5a6a] bg-[#5a5a6a]/10' };
   };
 
-  const formatUpdatedTime = (iso?: string) => {
-    if (!iso) return 'Unknown';
-    const date = new Date(iso);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+
 
   return (
     <div className="space-y-4">
@@ -488,12 +480,6 @@ function WarRoomTab({ user }: { user: any }) {
           <span className="text-lg">🦀</span>
           <span>TOKEN HOLDERS</span>
           <div className="flex-1 h-px bg-[#ff1a1a]/30" />
-        </div>
-
-        {/* Update time & stats */}
-        <div className="flex items-center justify-between text-[10px] text-[#5a5a6a] font-mono mb-3">
-          <span>Updated: {formatUpdatedTime(holderMeta.updatedAt)}</span>
-          <span>{holderMeta.totalHolders || holders.length} CRABS</span>
         </div>
 
         {/* Milestone legend */}

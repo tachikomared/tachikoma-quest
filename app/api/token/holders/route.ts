@@ -7,8 +7,7 @@ const DECIMALS = 18;
 
 export const dynamic = 'force-dynamic';
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-let cache: { at: number; data: any } | null = null;
+const DECIMALS = 18;
 
 function formatBalance(raw: string) {
   const value = Number(raw) / Math.pow(10, DECIMALS);
@@ -17,14 +16,9 @@ function formatBalance(raw: string) {
 
 export async function GET() {
   try {
-    if (cache && Date.now() - cache.at < CACHE_TTL_MS) {
-      return NextResponse.json(cache.data);
-    }
-
     // Pull top holders from Blockscout (all token holders)
-    const res = await fetch(`${BLOCKSCOUT_HOLDERS_URL}?limit=20`, {
+    const res = await fetch(BLOCKSCOUT_HOLDERS_URL, {
       headers: { 'Accept': 'application/json' },
-      next: { revalidate: 300 },
     });
 
     if (!res.ok) {
@@ -53,15 +47,15 @@ export async function GET() {
       linked.map((u: any) => [u.wallet_address?.toLowerCase(), u])
     );
 
-    const holders = items.map((item: any, index: number) => {
-      const address = item.address?.hash || item.address;
+    const holders = items.slice(0, 20).map((item: any, index: number) => {
+      const address = item.address?.hash;
       const linkedUser = linkedMap.get(address?.toLowerCase());
 
       return {
         rank: index + 1,
         address,
-        balance: formatBalance(item.value || item.balance || '0'),
-        rawBalance: item.value || item.balance || '0',
+        balance: formatBalance(item.value || '0'),
+        rawBalance: item.value || '0',
         fid: linkedUser?.fc_fid || null,
         username: linkedUser?.fc_username || null,
         displayName: linkedUser?.fc_display_name || null,
@@ -70,16 +64,10 @@ export async function GET() {
       };
     });
 
-    const payload = {
+    return NextResponse.json({
       holders,
       totalHolders: data?.total || holders.length,
-      updatedAt: new Date().toISOString(),
-      source: 'blockscout',
-    };
-
-    cache = { at: Date.now(), data: payload };
-
-    return NextResponse.json(payload);
+    });
   } catch (e: any) {
     console.error('[token/holders] Error:', e);
     return NextResponse.json(
