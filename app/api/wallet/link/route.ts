@@ -55,8 +55,9 @@ export async function POST(req: Request) {
     );
   }
 
-  // Verify message contains FID
-  if (!message.includes(String(current.fid))) {
+  // Verify message contains user identifier (FID for Farcaster users, userId for guests)
+  const isGuest = current.fid === 0;
+  if (!isGuest && !message.includes(String(current.fid))) {
     return NextResponse.json(
       { ok: false, error: 'Invalid message - FID mismatch' },
       { status: 400 }
@@ -64,9 +65,9 @@ export async function POST(req: Request) {
   }
 
   // Get user ID
-  const userRows = await sql`
-    SELECT id FROM users WHERE fc_fid = ${current.fid} LIMIT 1
-  `;
+  const userRows = isGuest
+    ? await sql`SELECT id FROM users WHERE id = ${current.id} LIMIT 1`
+    : await sql`SELECT id FROM users WHERE fc_fid = ${current.fid} LIMIT 1`;
 
   if (!userRows.length) {
     return NextResponse.json(

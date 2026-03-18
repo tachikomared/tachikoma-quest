@@ -55,27 +55,38 @@ export async function requireCurrentUser(): Promise<CurrentUser> {
   }
 
   const session = await verifySessionToken(sessionCookie.value);
-  if (!session?.fid) {
+  if (session?.fid === undefined || session?.fid === null) {
     throw new Error('Invalid session');
   }
 
   // Verify user exists in DB
-  const rows = await sql`
-    SELECT id, fc_fid, fc_username
-    FROM users
-    WHERE fc_fid = ${session.fid}
-    LIMIT 1
-  `;
+  const rows = session.fid === 0
+    ? await sql`
+        SELECT id, fc_fid, fc_username
+        FROM users
+        WHERE id = ${session.userId}
+        LIMIT 1
+      `
+    : await sql`
+        SELECT id, fc_fid, fc_username
+        FROM users
+        WHERE fc_fid = ${session.fid}
+        LIMIT 1
+      `;
 
   if (rows.length) {
     return {
       id: rows[0].id,
-      fid: rows[0].fc_fid,
+      fid: rows[0].fc_fid ?? 0,
       username: rows[0].fc_username,
     };
   }
 
   // Create new user if not exists - generate referral code in JS (no pgcrypto dependency)
+  if (session.fid === 0) {
+    throw new Error('Guest user not found');
+  }
+
   const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
   const result = await sql`
     INSERT INTO users (fc_fid, fc_username, referral_code)

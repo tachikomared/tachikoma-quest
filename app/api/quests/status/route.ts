@@ -8,12 +8,18 @@ export async function GET() {
   try {
     const current = await requireCurrentUser();
 
-    const rows = await sql`
-      SELECT qc.quest_id
-      FROM quest_claims qc
-      JOIN users u ON u.id = qc.user_id
-      WHERE u.fc_fid = ${current.fid}
-    `;
+    const rows = current.fid === 0
+      ? await sql`
+          SELECT qc.quest_id
+          FROM quest_claims qc
+          WHERE qc.user_id = ${current.id}
+        `
+      : await sql`
+          SELECT qc.quest_id
+          FROM quest_claims qc
+          JOIN users u ON u.id = qc.user_id
+          WHERE u.fc_fid = ${current.fid}
+        `;
 
     const completed = rows.map((r: any) => r.quest_id);
 

@@ -76,9 +76,12 @@ export async function POST(req: Request) {
       
       const newUser = await sql`
         INSERT INTO users (fc_fid, fc_username, referral_code, referred_by_code, created_at)
-        VALUES (0, ${'guest_' + normalizedAddress.slice(2, 8)}, ${referralCode}, ${referredByCode}, NOW())
+        VALUES (NULL, ${'guest_' + normalizedAddress.slice(2, 8)}, ${referralCode}, ${referredByCode}, NOW())
         RETURNING id
       `;
+      
+      // Set fid to 0 for session (guest mode)
+      fid = 0;
       
       userId = newUser[0].id;
       

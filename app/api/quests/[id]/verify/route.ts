@@ -282,12 +282,40 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     ON CONFLICT (user_id, quest_id) DO NOTHING
   `;
 
+  // Award daily check-in bonus (+50 XP) if not already claimed today
+  let dailyBonusAwarded = 0;
+  try {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const dailyQuestId = `daily-checkin-${today}`;
+
+    // Check if already claimed today
+    const existingDaily = await sql`
+      SELECT 1 FROM quest_claims
+      WHERE user_id = ${userId} AND quest_id LIKE 'daily-checkin-%'
+        AND verified_at >= CURRENT_DATE
+      LIMIT 1
+    `;
+
+    if (existingDaily.length === 0) {
+      // Award daily bonus
+      await sql`
+        INSERT INTO quest_claims (user_id, quest_id, status, proof, points_awarded)
+        VALUES (${userId}, ${dailyQuestId}, 'verified', ${JSON.stringify({ date: today, source: quest.id })}::jsonb, 50)
+        ON CONFLICT (user_id, quest_id) DO NOTHING
+      `;
+      dailyBonusAwarded = 50;
+    }
+  } catch (e) {
+    console.warn('[verify] Daily bonus award failed:', e);
+  }
+
   // Check for referral qualification
   await awardReferralIfQualified(userId);
 
   return NextResponse.json({
     verified: true,
     questId: quest.id,
-    pointsAwarded: quest.points,
+    pointsAwarded: quest.points + dailyBonusAwarded,
+    dailyBonus: dailyBonusAwarded,
   });
 }

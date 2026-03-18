@@ -30,13 +30,20 @@ export async function POST(req: Request) {
 
     // Get user's wallet from DB
     const { sql } = await import('@/lib/db');
-    const rows = await sql`
-      SELECT w.address AS wallet_address
-      FROM wallets w
-      JOIN users u ON u.id = w.user_id
-      WHERE u.fc_fid = ${current.fid} AND w.verified = true
-      LIMIT 1
-    `;
+    const rows = current.fid === 0
+      ? await sql`
+          SELECT w.address AS wallet_address
+          FROM wallets w
+          WHERE w.user_id = ${current.id} AND w.verified = true
+          LIMIT 1
+        `
+      : await sql`
+          SELECT w.address AS wallet_address
+          FROM wallets w
+          JOIN users u ON u.id = w.user_id
+          WHERE u.fc_fid = ${current.fid} AND w.verified = true
+          LIMIT 1
+        `;
     
     const fromAddress = rows[0]?.wallet_address;
     

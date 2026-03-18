@@ -6,7 +6,12 @@ import { requireCurrentUser } from '@/lib/auth';
 export async function GET() {
   try {
     const current = await requireCurrentUser();
-    
+
+    // Skip for guest users
+    if (current.fid === 0) {
+      return NextResponse.json({ success: true, skipped: true, reason: 'guest_user' });
+    }
+
     // Fetch fresh data from Neynar
     const neynarUser = await fetchUserWithScore(current.fid);
     
