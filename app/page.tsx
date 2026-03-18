@@ -754,7 +754,7 @@ function PilotTab({ user }: { user: any }) {
   }, []);
 
   useEffect(() => {
-    if (!address) return;
+    if (!user?.walletAddress) return;
     setFastBalanceLoading(true);
     fetch('/api/token/balance')
       .then(r => r.json())
@@ -763,7 +763,7 @@ function PilotTab({ user }: { user: any }) {
       })
       .catch(() => null)
       .finally(() => setFastBalanceLoading(false));
-  }, [address]);
+  }, [user?.walletAddress]);
 
   if (!user) return null;
 
