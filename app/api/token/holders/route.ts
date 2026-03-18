@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createPublicClient, http } from 'viem';
+import { createPublicClient, http, keccak256, toBytes } from 'viem';
 import { base } from 'viem/chains';
 import { sql } from '@/lib/db';
 
 const TACHI_CONTRACT = '0x39B4B879b8521d6A8C3a87cda64b969327b7fbA3';
 const BLOCKSCOUT_HOLDERS_URL = `https://base.blockscout.com/api/v2/tokens/${TACHI_CONTRACT}/holders`;
+const DEXSCREENER_URL = `https://api.dexscreener.com/latest/dex/tokens/${TACHI_CONTRACT}`;
 const DECIMALS = 18;
 
 // Base ENS Registry for .base.eth names
@@ -41,22 +42,47 @@ export const dynamic = 'force-dynamic';
 
 function formatBalance(raw: string) {
   const value = Number(raw) / Math.pow(10, DECIMALS);
-  return value.toFixed(4);
+  return value.toFixed(2);
+}
+
+// Simple namehash implementation for reverse records
+function namehash(name: string): `0x${string}` {
+  let node = '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`;
+  if (name) {
+    const labels = name.split('.');
+    for (let i = labels.length - 1; i >= 0; i--) {
+      node = keccak256(toBytes(node + keccak256(toBytes(labels[i])).slice(2)));
+    }
+  }
+  return node;
+}
+
+// Fetch TACHI price from DexScreener
+async function getTachiPrice(): Promise<number> {
+  try {
+    const res = await fetch(DEXSCREENER_URL, { next: { revalidate: 60 } });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    const pair = data?.pairs?.[0];
+    return pair?.priceUsd ? Number(pair.priceUsd) : 0;
+  } catch {
+    return 0;
+  }
 }
 
 // Reverse resolve address to .base.eth name
 async function resolveBaseENS(address: string): Promise<string | null> {
   try {
-    // Convert address to reverse node
+    // Proper reverse node: address.addr.reverse
     const reverseName = `${address.toLowerCase().slice(2)}.addr.reverse`;
-    const node = `0x${Buffer.from(reverseName).toString('hex')}`;
+    const node = namehash(reverseName);
     
     // Get resolver from registry
     const resolverAddr = await publicClient.readContract({
       address: BASE_ENS_REGISTRY as `0x${string}`,
       abi: ENS_REGISTRY_ABI,
       functionName: 'resolver',
-      args: [node as `0x${string}`],
+      args: [node],
     });
     
     if (!resolverAddr || resolverAddr === '0x0000000000000000000000000000000000000000') {
@@ -68,7 +94,7 @@ async function resolveBaseENS(address: string): Promise<string | null> {
       address: resolverAddr,
       abi: ENS_RESOLVER_ABI,
       functionName: 'name',
-      args: [node as `0x${string}`],
+      args: [node],
     });
     
     return name || null;
@@ -120,11 +146,15 @@ export async function GET() {
       return address && !excluded.has(address);
     });
 
+    // Fetch TACHI price
+    const tachiPrice = await getTachiPrice();
+
     // Resolve Base ENS names for top holders
     const holders = await Promise.all(
       filtered.slice(0, 20).map(async (item: any, index: number) => {
         const address = item.address?.hash;
         const linkedUser = linkedMap.get(address?.toLowerCase());
+        const balanceTokens = Number(item.value || '0') / Math.pow(10, DECIMALS);
         
         // Try to get .base.eth name if no ENS from Blockscout
         let baseEns = item.address?.ens_domain_name;
@@ -136,7 +166,8 @@ export async function GET() {
           rank: index + 1,
           address,
           ens: baseEns || item.address?.ens_domain_name || null,
-          balance: formatBalance(item.value || '0'),
+          balance: balanceTokens.toFixed(2),
+          balanceUsd: tachiPrice > 0 ? (balanceTokens * tachiPrice).toFixed(2) : null,
           rawBalance: item.value || '0',
           fid: linkedUser?.fc_fid || null,
           username: linkedUser?.fc_username || null,
@@ -150,6 +181,7 @@ export async function GET() {
     return NextResponse.json({
       holders,
       totalHolders: data?.total || holders.length,
+      priceUsd: tachiPrice,
     });
   } catch (e: any) {
     console.error('[token/holders] Error:', e);

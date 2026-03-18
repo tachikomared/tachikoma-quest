@@ -500,9 +500,14 @@ function WarRoomTab({ user }: { user: any }) {
                   </div>
                   <div className="text-right">
                     <div className="text-[#39ff14] font-black text-xs" style={{ fontFamily: 'Press Start 2P, monospace' }}>
-                      {Number(holder.balance).toFixed(2)}
+                      {Number(holder.balance).toFixed(0)}
                     </div>
                     <div className="text-[9px] text-[#5a5a6a] font-mono">$TACHI</div>
+                    {holder.balanceUsd && (
+                      <div className="text-[8px] text-[#ff6b00] font-mono">
+                        ${Number(holder.balanceUsd).toFixed(0)}
+                      </div>
+                    )}
                   </div>
                 </a>
               );
