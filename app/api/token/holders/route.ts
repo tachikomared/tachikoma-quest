@@ -22,9 +22,12 @@ const ERC20_ABI = [
   },
 ] as const;
 
+// Use Alchemy RPC for reliable data
+const alchemyKey = process.env.ALCHEMY_API_KEY || '_cJQ3B3yIO5msQ-IN-z239yz8V4WxZs6';
+
 const publicClient = createPublicClient({
   chain: base,
-  transport: http(),
+  transport: http(`https://base-mainnet.g.alchemy.com/v2/${alchemyKey}`),
 });
 
 export const dynamic = 'force-dynamic';
