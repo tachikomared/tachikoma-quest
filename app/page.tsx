@@ -543,8 +543,24 @@ function WarRoomTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
               if (isMiniApp && typeof window !== 'undefined' && (window as any).sdk?.actions?.composeCast) {
                 await (window as any).sdk.actions.composeCast({ text, embeds: [shareUrl] });
               } else {
-                const wcUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(shareUrl)}`;
-                window.open(wcUrl, '_blank');
+                // Try native app deep link first, fallback to web
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                const encodedText = encodeURIComponent(text);
+                const encodedEmbed = encodeURIComponent(shareUrl);
+                
+                if (isMobile) {
+                  // Try warpcast:// deep link
+                  const deepLink = `warpcast://compose?text=${encodedText}&embeds[]=${encodedEmbed}`;
+                  window.location.href = deepLink;
+                  // Fallback to web after short delay if app doesn't open
+                  setTimeout(() => {
+                    const wcUrl = `https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`;
+                    window.open(wcUrl, '_blank');
+                  }, 2000);
+                } else {
+                  const wcUrl = `https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`;
+                  window.open(wcUrl, '_blank');
+                }
               }
             }}
             className="mt-4 mecha-button w-full text-xs bg-[#ff1a1a]/10 border-[#ff1a1a]"
@@ -830,7 +846,10 @@ function PilotTab({ user }: { user: any }) {
 
       {/* $TACHI Transfer Section - only show if wallet connected and has balance */}
       {user.walletAddress && Number(formattedBalance) > 0 && (
-        <TachiTransferSection balance={formattedBalance} />
+        <>
+          <TachiTransferSection balance={formattedBalance} />
+          <TachiBurnSection balance={formattedBalance} />
+        </>
       )}
 
       {/* Access Key */}
@@ -933,6 +952,90 @@ function TachiTransferSection({ balance }: { balance: string }) {
         {status === 'error' && (
           <div className="text-xs text-[#ff1a1a] font-mono text-center">✗ TRANSFER FAILED</div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// $TACHI Burn Component
+function TachiBurnSection({ balance }: { balance: string }) {
+  const [amount, setAmount] = useState('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const { writeAndOpen } = useMobileWriteContract();
+
+  const handleBurn = async () => {
+    if (!amount) return;
+
+    setStatus('loading');
+    try {
+      await writeAndOpen({
+        address: TACHI_CONTRACT as `0x${string}`,
+        abi: [
+          {
+            inputs: [
+              { name: 'to', type: 'address' },
+              { name: 'value', type: 'uint256' },
+            ],
+            name: 'transfer',
+            outputs: [{ name: '', type: 'bool' }],
+            stateMutability: 'nonpayable',
+            type: 'function',
+          },
+        ],
+        functionName: 'transfer',
+        args: ['0x0000000000000000000000000000000000000000', BigInt(Math.floor(Number(amount) * 1e18))],
+      });
+      setStatus('success');
+      setAmount('');
+    } catch (e) {
+      console.error('[burn] Failed:', e);
+      setStatus('error');
+    }
+  };
+
+  return (
+    <div className="mission-card border-[#ff1a1a]/30">
+      <div className="text-[#ff1a1a] text-xs font-mono mb-3 tracking-wider">/// BURN $TACHI ///</div>
+      
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs text-[#8a8a9a] font-mono block mb-1">AMOUNT TO BURN</label>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              max={balance}
+              className="flex-1 bg-[#050508] border border-[#1a1a24] rounded p-2 text-xs font-mono text-[#f0f0f0] focus:border-[#ff1a1a] focus:outline-none"
+            />
+            <button
+              onClick={() => setAmount(balance)}
+              className="text-xs bg-[#1a1a24] border border-[#252535] rounded px-3 text-[#8a8a9a] hover:text-[#f0f0f0]"
+            >
+              MAX
+            </button>
+          </div>
+          <div className="text-xs text-[#5a5a6a] mt-1">Available: {balance} $TACHI</div>
+        </div>
+        
+        <button
+          onClick={handleBurn}
+          disabled={status === 'loading' || !amount}
+          className="mecha-button w-full text-xs bg-[#ff1a1a]/20 border-[#ff1a1a] disabled:opacity-50"
+        >
+          {status === 'loading' ? '⏳ BROADCASTING...' : '🔥 BURN $TACHI'}
+        </button>
+        
+        {status === 'success' && (
+          <div className="text-xs text-[#39ff14] font-mono text-center">✓ BURN INITIATED</div>
+        )}
+        {status === 'error' && (
+          <div className="text-xs text-[#ff1a1a] font-mono text-center">✗ BURN FAILED</div>
+        )}
+        <div className="text-[10px] text-[#5a5a6a] font-mono text-center">
+          Burning sends tokens to the zero address and is irreversible.
+        </div>
       </div>
     </div>
   );
