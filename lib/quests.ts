@@ -13,6 +13,7 @@ export type QuestVerification =
   | 'fc_cast_viewer_context'
   | 'wallet_signature'
   | 'wallet_balance'
+  | 'wallet_burn'
   | 'manual_open'
   | 'referral_qualified';
 
@@ -191,6 +192,20 @@ export const QUESTS: QuestDef[] = [
     enabled: true,
     target: { minBalance: '100' },
     icon: '🦀',
+  },
+  {
+    id: 'crab-burner',
+    title: 'CrabBurner',
+    description: 'Burn at least 1,000,000 $TACHI in your linked wallet',
+    platform: 'wallet',
+    action: 'link_wallet',
+    verification: 'wallet_burn',
+    points: 2500,
+    tachiReward: 0,
+    repeatable: false,
+    enabled: true,
+    target: { minBalance: '1000000' },
+    icon: '🔥',
   },
 ];
 

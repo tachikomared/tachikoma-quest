@@ -397,7 +397,7 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
 }
 
 // War Room Tab (Leaderboard)
-function WarRoomTab({ user }: { user: any }) {
+function WarRoomTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   const [operatives, setOperatives] = useState<any[]>([]);
   const [holders, setHolders] = useState<any[]>([]);
 
@@ -534,7 +534,7 @@ function WarRoomTab({ user }: { user: any }) {
               const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}?tab=warroom`;
               const text = `🦀 Check out the $TACHI Holders Leaderboard! Rank #${rank || '???'} ${tier.label} // Holding ${holder?.balance || '0'} $TACHI`;
               
-              if (typeof window !== 'undefined' && (window as any).sdk?.actions?.composeCast) {
+              if (isMiniApp && typeof window !== 'undefined' && (window as any).sdk?.actions?.composeCast) {
                 await (window as any).sdk.actions.composeCast({ text, embeds: [shareUrl] });
               } else {
                 const wcUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}&embeds[]=${encodeURIComponent(shareUrl)}`;
@@ -790,7 +790,7 @@ function PilotTab({ user }: { user: any }) {
         <div className="mission-card text-center">
           <div className="text-[#8a8a9a] text-xs font-mono mb-1">$TACHI</div>
           <div className="text-[#ff1a1a] font-black text-2xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>
-            {mounted ? formattedBalance : '---'}
+            {mounted ? (fastBalanceLoading ? '...' : formattedBalance) : '---'}
           </div>
         </div>
       </div>
@@ -923,6 +923,15 @@ function TachiTransferSection({ balance }: { balance: string }) {
         
         {status === 'success' && (
           <div className="text-xs text-[#39ff14] font-mono text-center">✓ TRANSFER INITIATED</div>
+        )}
+        {status === 'error' && (
+          <div className="text-xs text-[#ff1a1a] font-mono text-center">✗ TRANSFER FAILED</div>
+        )}
+      </div>
+    </div>
+  );
+}
+     <div className="text-xs text-[#39ff14] font-mono text-center">✓ TRANSFER INITIATED</div>
         )}
         {status === 'error' && (
           <div className="text-xs text-[#ff1a1a] font-mono text-center">✗ TRANSFER FAILED</div>

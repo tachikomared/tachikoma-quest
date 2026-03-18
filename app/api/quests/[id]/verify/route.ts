@@ -208,7 +208,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     };
   }
 
-  if (quest.verification === 'wallet_balance') {
+  if (quest.verification === 'wallet_balance' || quest.verification === 'wallet_burn') {
     const minBalance = Number(quest.target.minBalance || '0');
 
     const walletRows = await sql`
@@ -226,23 +226,46 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
       );
     }
 
-    const [balance, decimals] = await Promise.all([
-      publicClient.readContract({
-        address: TACHI_CONTRACT as `0x${string}`,
-        abi: ERC20_BALANCE_ABI,
-        functionName: 'balanceOf',
-        args: [walletAddress as `0x${string}`],
-      }),
-      publicClient.readContract({
-        address: TACHI_CONTRACT as `0x${string}`,
-        abi: ERC20_BALANCE_ABI,
-        functionName: 'decimals',
-      }),
-    ]);
+    if (quest.verification === 'wallet_balance') {
+      const [balance, decimals] = await Promise.all([
+        publicClient.readContract({
+          address: TACHI_CONTRACT as `0x${string}`,
+          abi: ERC20_BALANCE_ABI,
+          functionName: 'balanceOf',
+          args: [walletAddress as `0x${string}`],
+        }),
+        publicClient.readContract({
+          address: TACHI_CONTRACT as `0x${string}`,
+          abi: ERC20_BALANCE_ABI,
+          functionName: 'decimals',
+        }),
+      ]);
 
-    const formatted = Number(balance) / Math.pow(10, decimals);
-    verified = formatted >= minBalance;
-    proof = { walletAddress, balance: formatted.toFixed(4), minBalance };
+      const formatted = Number(balance) / Math.pow(10, decimals);
+      verified = formatted >= minBalance;
+      proof = { walletAddress, balance: formatted.toFixed(4), minBalance };
+    }
+
+    if (quest.verification === 'wallet_burn') {
+      // Use Blockscout token transfers to infer total burned (to zero address)
+      const url = `https://base.blockscout.com/api/v2/addresses/${walletAddress}/token-transfers?token=${TACHI_CONTRACT}`;
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      if (!res.ok) {
+        return NextResponse.json(
+          { verified: false, error: 'burn_lookup_failed' },
+          { status: 400 }
+        );
+      }
+      const data = await res.json();
+      const items = data?.items || [];
+      const burned = items
+        .filter((t: any) => t.to?.hash?.toLowerCase() === '0x0000000000000000000000000000000000000000')
+        .reduce((sum: number, t: any) => sum + Number(t.total?.value || 0), 0);
+
+      const formattedBurn = burned / 1e18;
+      verified = formattedBurn >= minBalance;
+      proof = { walletAddress, burned: formattedBurn.toFixed(4), minBalance };
+    }
   }
 
   if (!verified) {
