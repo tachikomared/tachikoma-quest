@@ -544,12 +544,16 @@ function WarRoomTab({ user }: { user: any }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold truncate">@{holder.username || 'anon'}</span>
+                      <span className="text-xs font-bold truncate">
+                        {holder.username ? `@${holder.username}` : `${holder.address?.slice(0, 6)}...${holder.address?.slice(-4)}`}
+                      </span>
                       <span className={`text-[7px] px-1 py-0.5 border rounded ${tier.color}`}>
                         {tier.label}
                       </span>
                     </div>
-                    <div className="text-[9px] text-[#5a5a6a] font-mono">FID {holder.fid}</div>
+                    <div className="text-[9px] text-[#5a5a6a] font-mono">
+                      {holder.fid ? `FID ${holder.fid}` : 'UNLINKED WALLET'}
+                    </div>
                   </div>
                   <div className="text-right">
                     <div className="text-[#39ff14] font-black text-xs" style={{ fontFamily: 'Press Start 2P, monospace' }}>
