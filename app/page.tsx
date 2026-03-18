@@ -8,6 +8,13 @@ import { TACHI_CONTRACT, ERC20_BALANCE_ABI, MOCK_REFERRAL_REWARDS, MOCK_LEADERBO
 import { useReadContract } from 'wagmi';
 import { useMobileWriteContract } from '@/hooks/useMobileWallet';
 
+const BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD';
+
+const formatNumber = (value: number | string, maxFractionDigits = 0) => {
+  const num = Number(value || 0);
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: maxFractionDigits }).format(num);
+};
+
 type Tab = 'missions' | 'warroom' | 'enlist' | 'pilot';
 type MissionStatus = 'pending' | 'active' | 'completed' | 'failed';
 
@@ -515,7 +522,7 @@ function WarRoomTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
                   </div>
                   <div className="text-right">
                     <div className="text-[#39ff14] font-black text-xs" style={{ fontFamily: 'Press Start 2P, monospace' }}>
-                      {Number(holder.balance).toFixed(0)}
+                      {formatNumber(holder.balance, 0)}
                     </div>
                     <div className="text-[9px] text-[#5a5a6a] font-mono">$TACHI</div>
                     {holder.balanceUsd && (
@@ -768,7 +775,9 @@ function PilotTab({ user }: { user: any }) {
   if (!user) return null;
 
   // Format balance (18 decimals)
-  const formattedBalance = tachiBalance ? (Number(tachiBalance) / 1e18).toFixed(2) : (fastBalance || '0');
+  const numericBalance = tachiBalance ? (Number(tachiBalance) / 1e18) : Number(fastBalance || '0');
+  const formattedBalance = numericBalance.toFixed(4);
+  const displayBalance = formatNumber(numericBalance, 0);
 
   return (
     <div className="space-y-4">
@@ -826,7 +835,7 @@ function PilotTab({ user }: { user: any }) {
         <div className="mission-card text-center">
           <div className="text-[#8a8a9a] text-xs font-mono mb-1">$TACHI</div>
           <div className="text-[#ff1a1a] font-black text-2xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>
-            {mounted ? (fastBalanceLoading ? '...' : formattedBalance) : '---'}
+            {mounted ? (fastBalanceLoading ? '...' : displayBalance) : '---'}
           </div>
         </div>
       </div>
@@ -861,8 +870,8 @@ function PilotTab({ user }: { user: any }) {
       {/* $TACHI Transfer Section - only show if wallet connected and has balance */}
       {user.walletAddress && Number(formattedBalance) > 0 && (
         <>
-          <TachiTransferSection balance={formattedBalance} />
-          <TachiBurnSection balance={formattedBalance} />
+          <TachiTransferSection balance={formattedBalance} displayBalance={displayBalance} />
+          <TachiBurnSection balance={formattedBalance} displayBalance={displayBalance} />
         </>
       )}
 
@@ -878,7 +887,7 @@ function PilotTab({ user }: { user: any }) {
 }
 
 // $TACHI Transfer Component
-function TachiTransferSection({ balance }: { balance: string }) {
+function TachiTransferSection({ balance, displayBalance }: { balance: string; displayBalance: string }) {
   const [toAddress, setToAddress] = useState('');
   const [amount, setAmount] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -949,7 +958,7 @@ function TachiTransferSection({ balance }: { balance: string }) {
               MAX
             </button>
           </div>
-          <div className="text-xs text-[#5a5a6a] mt-1">Available: {balance} $TACHI</div>
+          <div className="text-xs text-[#5a5a6a] mt-1">Available: {displayBalance} $TACHI</div>
         </div>
         
         <button
@@ -972,13 +981,19 @@ function TachiTransferSection({ balance }: { balance: string }) {
 }
 
 // $TACHI Burn Component
-function TachiBurnSection({ balance }: { balance: string }) {
+function TachiBurnSection({ balance, displayBalance }: { balance: string; displayBalance: string }) {
   const [amount, setAmount] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const { writeAndOpen } = useMobileWriteContract();
 
   const handleBurn = async () => {
     if (!amount) return;
+
+    const parsed = Number(amount);
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+
+    const units = BigInt(Math.floor(parsed * 1e18));
+    if (units <= 0n) return;
 
     setStatus('loading');
     try {
@@ -997,7 +1012,7 @@ function TachiBurnSection({ balance }: { balance: string }) {
           },
         ],
         functionName: 'transfer',
-        args: ['0x0000000000000000000000000000000000000000', BigInt(Math.floor(Number(amount) * 1e18))],
+        args: [BURN_ADDRESS, units],
       });
       setStatus('success');
       setAmount('');
@@ -1030,7 +1045,7 @@ function TachiBurnSection({ balance }: { balance: string }) {
               MAX
             </button>
           </div>
-          <div className="text-xs text-[#5a5a6a] mt-1">Available: {balance} $TACHI</div>
+          <div className="text-xs text-[#5a5a6a] mt-1">Available: {displayBalance} $TACHI</div>
         </div>
         
         <button
