@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createPublicClient, http, formatEther } from 'viem';
+import { createPublicClient, http } from 'viem';
 import { base } from 'viem/chains';
 import { sql } from '@/lib/db';
 
@@ -9,13 +9,6 @@ const ERC20_ABI = [
   {
     inputs: [{ name: 'account', type: 'address' }],
     name: 'balanceOf',
-    outputs: [{ name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'totalSupply',
     outputs: [{ name: '', type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
@@ -36,8 +29,15 @@ const publicClient = createPublicClient({
 
 export const dynamic = 'force-dynamic';
 
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+let cache: { at: number; data: any } | null = null;
+
 export async function GET() {
   try {
+    if (cache && Date.now() - cache.at < CACHE_TTL_MS) {
+      return NextResponse.json(cache.data);
+    }
+
     // Get all users with linked wallets
     const users = await sql`
       SELECT 
@@ -96,10 +96,15 @@ export async function GET() {
       .sort((a, b) => Number(b.balance) - Number(a.balance))
       .slice(0, 20);
 
-    return NextResponse.json({
+    const payload = {
       holders: sortedHolders,
       totalHolders: sortedHolders.length,
-    });
+      updatedAt: new Date().toISOString(),
+    };
+
+    cache = { at: Date.now(), data: payload };
+
+    return NextResponse.json(payload);
   } catch (e: any) {
     console.error('[token/holders] Error:', e);
     return NextResponse.json(

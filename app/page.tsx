@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/app/providers';
-import { useConnect, useAccount, useSignMessage, useWriteContract } from 'wagmi';
+import { useConnect, useAccount, useSignMessage } from 'wagmi';
 import { sdk } from '@farcaster/miniapp-sdk';
 import { TACHI_CONTRACT, ERC20_BALANCE_ABI, MOCK_REFERRAL_REWARDS, MOCK_LEADERBOARD } from '@/data/mocks';
 import { useReadContract } from 'wagmi';
+import { useMobileWriteContract } from '@/hooks/useMobileWallet';
 
 type Tab = 'missions' | 'warroom' | 'enlist' | 'pilot';
 type MissionStatus = 'pending' | 'active' | 'completed' | 'failed';
@@ -755,14 +756,14 @@ function TachiTransferSection({ balance }: { balance: string }) {
   const [toAddress, setToAddress] = useState('');
   const [amount, setAmount] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const { writeContract } = useWriteContract();
+  const { writeAndOpen } = useMobileWriteContract();
 
   const handleTransfer = async () => {
     if (!toAddress || !amount) return;
     
     setStatus('loading');
     try {
-      writeContract({
+      await writeAndOpen({
         address: TACHI_CONTRACT as `0x${string}`,
         abi: [
           {
