@@ -121,6 +121,12 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   const { signMessageAsync } = useSignMessage();
   const { refreshAuth } = useAuth();
 
+  useEffect(() => {
+    if (!isMiniApp) {
+      console.log('[wallet] connectors:', connectors.map(c => c.name));
+    }
+  }, [connectors, isMiniApp]);
+
   const refreshCompletions = async () => {
     try {
       const res = await fetch('/api/quests/status');
@@ -179,7 +185,7 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
       return;
     }
 
-    if (mission.verification === 'wallet_balance') {
+    if (mission.verification === 'wallet_balance' || mission.verification === 'wallet_burn') {
       setStatus(mission.id, 'active');
       try {
         const res = await fetch(`/api/quests/${mission.id}/verify`, { method: 'POST' });
