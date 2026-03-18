@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { useWriteContract, useConnectorClient } from 'wagmi';
+import { useWriteContract, useAccount } from 'wagmi';
 import { WriteContractParameters } from 'wagmi/actions';
 
 /**
@@ -14,7 +14,7 @@ import { WriteContractParameters } from 'wagmi/actions';
  */
 export function useMobileWriteContract() {
   const { writeContractAsync, isPending, isSuccess, isError, error, data } = useWriteContract();
-  const { data: connectorClient } = useConnectorClient();
+  const { connector } = useAccount();
   
   const [isDeepLinking, setIsDeepLinking] = useState(false);
 
@@ -40,8 +40,8 @@ export function useMobileWriteContract() {
     if (typeof window === 'undefined') return;
     
     // Try to detect wallet from various sources
-    const connectorId = connectorClient?.connector?.id?.toLowerCase() || '';
-    const connectorName = connectorClient?.connector?.name?.toLowerCase() || '';
+    const connectorId = connector?.id?.toLowerCase() || '';
+    const connectorName = connector?.name?.toLowerCase() || '';
     
     // Check localStorage for WalletConnect session
     let wcWallet = '';
@@ -77,7 +77,7 @@ export function useMobileWriteContract() {
 
     // Fallback: try generic wallet connect
     window.location.href = 'wc://';
-  }, [connectorClient]);
+  }, [connector]);
 
   /**
    * Write contract with mobile deep linking

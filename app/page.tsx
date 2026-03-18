@@ -391,6 +391,7 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
 function WarRoomTab({ user }: { user: any }) {
   const [operatives, setOperatives] = useState<any[]>([]);
   const [holders, setHolders] = useState<any[]>([]);
+  const [holderMeta, setHolderMeta] = useState<{ updatedAt?: string; totalHolders?: number }>({});
 
   useEffect(() => {
     fetch('/api/leaderboard')
@@ -399,7 +400,10 @@ function WarRoomTab({ user }: { user: any }) {
 
     fetch('/api/token/holders')
       .then(r => r.json())
-      .then(d => setHolders(d.holders || []))
+      .then(d => {
+        setHolders(d.holders || []);
+        setHolderMeta({ updatedAt: d.updatedAt, totalHolders: d.totalHolders });
+      })
       .catch(() => setHolders([]));
   }, []);
 
@@ -408,6 +412,23 @@ function WarRoomTab({ user }: { user: any }) {
     if (rank === 2) return 'text-[#8a8a9a] border-[#8a8a9a]';
     if (rank === 3) return 'text-[#cd7f32] border-[#cd7f32]';
     return 'text-[#5a5a6a] border-[#1a1a24]';
+  };
+
+  // Holder milestone tiers
+  const getHolderTier = (balance: string, rank: number) => {
+    const bal = Number(balance);
+    if (rank === 1) return { label: 'CRAB KING', color: 'text-[#ff6b00] border-[#ff6b00] bg-[#ff6b00]/10' };
+    if (rank <= 3) return { label: 'WHALE', color: 'text-[#00f0ff] border-[#00f0ff] bg-[#00f0ff]/10' };
+    if (rank <= 10) return { label: 'SHARK', color: 'text-[#39ff14] border-[#39ff14] bg-[#39ff14]/10' };
+    if (bal >= 1000) return { label: 'SQUID', color: 'text-[#ff1a1a] border-[#ff1a1a] bg-[#ff1a1a]/10' };
+    if (bal >= 500) return { label: 'OCTOPUS', color: 'text-[#8a8a9a] border-[#8a8a9a] bg-[#8a8a9a]/10' };
+    return { label: 'CRAB', color: 'text-[#5a5a6a] border-[#5a5a6a] bg-[#5a5a6a]/10' };
+  };
+
+  const formatUpdatedTime = (iso?: string) => {
+    if (!iso) return 'Unknown';
+    const date = new Date(iso);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
@@ -469,45 +490,99 @@ function WarRoomTab({ user }: { user: any }) {
           <div className="flex-1 h-px bg-[#ff1a1a]/30" />
         </div>
 
+        {/* Update time & stats */}
+        <div className="flex items-center justify-between text-[10px] text-[#5a5a6a] font-mono mb-3">
+          <span>Updated: {formatUpdatedTime(holderMeta.updatedAt)}</span>
+          <span>{holderMeta.totalHolders || holders.length} CRABS</span>
+        </div>
+
+        {/* Milestone legend */}
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {[
+            { label: 'CRAB KING', color: 'text-[#ff6b00] border-[#ff6b00]/50' },
+            { label: 'WHALE', color: 'text-[#00f0ff] border-[#00f0ff]/50' },
+            { label: 'SHARK', color: 'text-[#39ff14] border-[#39ff14]/50' },
+            { label: 'SQUID', color: 'text-[#ff1a1a] border-[#ff1a1a]/50' },
+          ].map((tier) => (
+            <span key={tier.label} className={`text-[8px] px-1.5 py-0.5 border rounded ${tier.color}`}>
+              {tier.label}
+            </span>
+          ))}
+        </div>
+
         {holders.length === 0 ? (
           <div className="text-xs text-[#5a5a6a] font-mono">NO HOLDER DATA YET</div>
         ) : (
           <div className="space-y-2">
-            {holders.map((holder, i) => (
-              <div
-                key={`${holder.fid}-${i}`}
-                className={`flex items-center gap-3 p-2 border border-[#1a1a24] rounded ${
-                  holder.username === user?.fcUsername ? 'bg-[#ff1a1a]/10' : 'bg-[#050508]'
-                }`}
-              >
-                <div className="w-8 h-8 rounded border-2 border-[#1a1a24] flex items-center justify-center font-black text-xs text-[#ff6b00]">
-                  {i + 1}
-                </div>
-                <div className="w-9 h-9 rounded bg-[#1a1a24] border border-[#252535] overflow-hidden">
-                  {holder.pfpUrl ? (
-                    <img
-                      src={holder.pfpUrl}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xs">?</div>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="text-xs font-bold">@{holder.username || 'anon'}</div>
-                  <div className="text-[10px] text-[#5a5a6a] font-mono">FID {holder.fid}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[#39ff14] font-black text-xs" style={{ fontFamily: 'Press Start 2P, monospace' }}>
-                    {holder.balance}
+            {holders.map((holder, i) => {
+              const tier = getHolderTier(holder.balance, i + 1);
+              return (
+                <div
+                  key={`${holder.fid}-${i}`}
+                  className={`flex items-center gap-3 p-2 border rounded ${
+                    holder.username === user?.fcUsername ? 'bg-[#ff1a1a]/10 border-[#ff1a1a]/30' : 'bg-[#050508] border-[#1a1a24]'
+                  }`}
+                >
+                  <div className="flex flex-col items-center">
+                    <div className={`w-7 h-7 rounded border-2 flex items-center justify-center font-black text-[10px] ${
+                      i < 3 ? 'text-[#ff6b00] border-[#ff6b00]' : 'text-[#5a5a6a] border-[#1a1a24]'
+                    }`}>
+                      {i + 1}
+                    </div>
                   </div>
-                  <div className="text-[10px] text-[#5a5a6a] font-mono">$TACHI</div>
+                  <div className="w-8 h-8 rounded bg-[#1a1a24] border border-[#252535] overflow-hidden">
+                    {holder.pfpUrl ? (
+                      <img
+                        src={holder.pfpUrl}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs">?</div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold truncate">@{holder.username || 'anon'}</span>
+                      <span className={`text-[7px] px-1 py-0.5 border rounded ${tier.color}`}>
+                        {tier.label}
+                      </span>
+                    </div>
+                    <div className="text-[9px] text-[#5a5a6a] font-mono">FID {holder.fid}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[#39ff14] font-black text-xs" style={{ fontFamily: 'Press Start 2P, monospace' }}>
+                      {Number(holder.balance).toFixed(2)}
+                    </div>
+                    <div className="text-[9px] text-[#5a5a6a] font-mono">$TACHI</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
+        )}
+
+        {/* Frame v2 Share Button */}
+        {user && (
+          <button
+            onClick={async () => {
+              const rank = holders.findIndex(h => h.username === user.fcUsername) + 1;
+              const holder = holders.find(h => h.username === user.fcUsername);
+              const tier = holder ? getHolderTier(holder.balance, rank) : { label: 'CRAB' };
+              const text = `🦀 TACHI QUEST // Rank #${rank || '???'} ${tier.label} // Holding ${holder?.balance || '0'} $TACHI // Join the crab army!`;
+              
+              if (typeof window !== 'undefined' && (window as any).sdk?.actions?.composeCast) {
+                await (window as any).sdk.actions.composeCast({ text });
+              } else {
+                const shareUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}`;
+                window.open(shareUrl, '_blank');
+              }
+            }}
+            className="mt-4 mecha-button w-full text-xs bg-[#ff1a1a]/10 border-[#ff1a1a]"
+          >
+            📡 BROADCAST RANK
+          </button>
         )}
       </div>
     </div>
