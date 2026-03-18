@@ -641,6 +641,7 @@ function WarRoomTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
 // Enlist Tab (Referrals)
 function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [stats, setStats] = useState({ enlisted: 0, active: 0, xpEarned: 0, recruits: [] as any[] });
   const [statsLoading, setStatsLoading] = useState(false);
   const referralCode = user?.referralCode || 'NO-CODE';
@@ -663,10 +664,16 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
       .finally(() => setStatsLoading(false));
   }, [user?.id]);
 
-  const handleCopy = () => {
+  const handleCopyCode = () => {
     navigator.clipboard.writeText(referralCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(referralLink);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
   };
 
   const handleShare = async () => {
@@ -713,27 +720,39 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
         </div>
       </div>
 
-      {/* Access Key */}
+      {/* Access Link */}
       <div className="mission-card border-[#00f0ff]">
-        <div className="text-[#00f0ff] text-xs font-mono mb-2 tracking-wider">/// ACCESS KEY ///</div>
-        <div className="bg-[#050508] border border-[#1a1a24] rounded p-4 mb-4">
-          <div className="text-[#ff1a1a] font-mono text-center text-xl tracking-[0.5em] font-black">
-            {referralCode}
+        <div className="text-[#00f0ff] text-xs font-mono mb-2 tracking-wider">/// REFERRAL LINK ///</div>
+        <div className="bg-[#050508] border border-[#1a1a24] rounded p-3 mb-3 overflow-hidden">
+          <div className="text-[#ff1a1a] font-mono text-sm truncate">
+            {referralLink}
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2 mb-3">
           <button 
-            onClick={handleCopy}
-            className="mecha-button flex-1 text-xs"
+            onClick={handleCopyLink}
+            className="mecha-button text-xs"
           >
-            {copied ? '✓ COPIED!' : '📋 COPY KEY'}
+            {linkCopied ? '✓ LINK COPIED!' : '📋 COPY LINK'}
           </button>
           <button 
             onClick={handleShare}
-            className="mecha-button flex-1 text-xs bg-[#00f0ff]/10 border-[#00f0ff]"
+            className="mecha-button text-xs bg-[#00f0ff]/10 border-[#00f0ff]"
           >
             📡 BROADCAST
           </button>
+        </div>
+        <div className="bg-[#1a1a24]/50 border border-[#252535] rounded p-3">
+          <div className="text-[#8a8a9a] text-xs font-mono mb-1">ACCESS KEY</div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[#f0f0f0] font-mono font-bold tracking-wider">{referralCode}</span>
+            <button 
+              onClick={handleCopyCode}
+              className="text-[10px] bg-[#252535] hover:bg-[#353545] px-2 py-1 rounded text-[#8a8a9a]"
+            >
+              {copied ? '✓' : 'COPY'}
+            </button>
+          </div>
         </div>
       </div>
 

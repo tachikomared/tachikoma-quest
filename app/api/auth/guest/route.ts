@@ -14,7 +14,7 @@ const publicClient = createPublicClient({
 
 export async function POST(req: Request) {
   try {
-    const { address, signature, message } = await req.json();
+    const { address, signature, message, refCode } = await req.json();
 
     if (!address || !signature || !message) {
       return NextResponse.json({ error: 'Missing params' }, { status: 400 });
@@ -64,12 +64,19 @@ export async function POST(req: Request) {
       // If it's a Farcaster user (fid > 0), we should have used Farcaster auth
       // But we'll allow it for now
     } else {
+      // Validate ref code if provided
+      let referredByCode: string | null = null;
+      if (refCode) {
+        const referrer = await sql`SELECT referral_code FROM users WHERE referral_code = ${refCode.toUpperCase()} LIMIT 1`;
+        if (referrer.length) referredByCode = referrer[0].referral_code;
+      }
+
       // Create new guest user
       const referralCode = 'GUEST-' + Math.random().toString(36).substring(2, 10).toUpperCase();
       
       const newUser = await sql`
-        INSERT INTO users (fc_fid, fc_username, referral_code, created_at)
-        VALUES (0, ${'guest_' + normalizedAddress.slice(2, 8)}, ${referralCode}, NOW())
+        INSERT INTO users (fc_fid, fc_username, referral_code, referred_by_code, created_at)
+        VALUES (0, ${'guest_' + normalizedAddress.slice(2, 8)}, ${referralCode}, ${referredByCode}, NOW())
         RETURNING id
       `;
       

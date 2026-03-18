@@ -53,6 +53,8 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
   const { isConnected, address } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const [isGuestLoggingIn, setIsGuestLoggingIn] = useState(false);
+  const [refCode, setRefCode] = useState('');
+  const urlRef = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ref') : null;
 
   const handleConnectFarcaster = async () => {
     if (isMiniApp) {
@@ -81,7 +83,7 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
       const res = await fetch('/api/auth/guest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, signature, message }),
+        body: JSON.stringify({ address, signature, message, refCode: refCode || urlRef }),
       });
 
       if (res.ok) {
@@ -135,6 +137,21 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
                 <span className="px-2 bg-gray-900 text-gray-500">or</span>
               </div>
             </div>
+
+            {/* Referral Code Input */}
+            {(urlRef || !isConnected) && (
+              <div className="bg-[#1a1a24] border border-[#252535] rounded-lg p-3">
+                <label className="text-[10px] text-[#8a8a9a] font-mono block mb-1">HAVE A REFERRAL CODE?</label>
+                <input
+                  type="text"
+                  value={refCode}
+                  onChange={(e) => setRefCode(e.target.value.toUpperCase())}
+                  placeholder={urlRef || 'ENTER CODE'}
+                  defaultValue={urlRef || ''}
+                  className="w-full bg-[#050508] border border-[#353545] rounded p-2 text-sm font-mono text-[#f0f0f0] focus:border-[#ff1a1a] focus:outline-none"
+                />
+              </div>
+            )}
 
             {!isConnected ? (
               <button
