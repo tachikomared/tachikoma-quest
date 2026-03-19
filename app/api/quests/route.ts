@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { QUESTS } from '@/lib/quests';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 300;
 
 export async function GET() {
   // Ensure quests exist in DB (best effort)
@@ -42,5 +42,8 @@ export async function GET() {
     console.warn('[quests] Sync skipped:', e);
   }
 
-  return NextResponse.json({ quests: QUESTS.filter((q) => q.enabled) });
+  return NextResponse.json(
+    { quests: QUESTS.filter((q) => q.enabled) },
+    { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } }
+  );
 }

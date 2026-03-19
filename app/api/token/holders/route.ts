@@ -38,7 +38,7 @@ const ENS_RESOLVER_ABI = [
   },
 ] as const;
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 300;
 
 function formatBalance(raw: string) {
   const value = Number(raw) / Math.pow(10, DECIMALS);
@@ -178,11 +178,14 @@ export async function GET() {
       })
     );
 
-    return NextResponse.json({
-      holders,
-      totalHolders: data?.total || holders.length,
-      priceUsd: tachiPrice,
-    });
+    return NextResponse.json(
+      {
+        holders,
+        totalHolders: data?.total || holders.length,
+        priceUsd: tachiPrice,
+      },
+      { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } }
+    );
   } catch (e: any) {
     console.error('[token/holders] Error:', e);
     return NextResponse.json(

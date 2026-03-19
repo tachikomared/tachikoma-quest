@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 // Get community burn leaderboard
 export async function GET(req: Request) {
@@ -47,14 +47,17 @@ export async function GET(req: Request) {
       tierName: getTierName(calculateTier(row.total_burned)),
     }));
 
-    return NextResponse.json({
-      ok: true,
-      leaderboard: formatted,
-      stats: {
-        totalBurners: parseInt(totals[0]?.total_burners || '0'),
-        totalBurned: totals[0]?.total_burned.toString() || '0',
+    return NextResponse.json(
+      {
+        ok: true,
+        leaderboard: formatted,
+        stats: {
+          totalBurners: parseInt(totals[0]?.total_burners || '0'),
+          totalBurned: totals[0]?.total_burned.toString() || '0',
+        },
       },
-    });
+      { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' } }
+    );
   } catch (err) {
     console.error('Burn leaderboard error:', err);
     return NextResponse.json({ ok: false, error: 'Server error' }, { status: 500 });

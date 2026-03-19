@@ -3,6 +3,8 @@ import { createPublicClient, http, formatEther } from 'viem';
 import { base } from 'viem/chains';
 import { requireCurrentUser } from '@/lib/auth';
 
+export const revalidate = 30;
+
 const TACHI_CONTRACT = '0x39B4B879b8521d6A8C3a87cda64b969327b7fbA3';
 
 const ERC20_ABI = [
@@ -105,19 +107,22 @@ export async function GET(req: Request) {
 
     const formattedBalance = Number(balance) / Math.pow(10, decimals);
 
-    return NextResponse.json({
-      balance: balance.toString(),
-      formattedBalance: formattedBalance.toFixed(4),
-      hasTokens: formattedBalance > 0,
-      walletLinked: true,
-      walletAddress,
-      tokenInfo: {
-        symbol,
-        decimals,
-        totalSupply: formatEther(totalSupply),
-        contractAddress: TACHI_CONTRACT,
+    return NextResponse.json(
+      {
+        balance: balance.toString(),
+        formattedBalance: formattedBalance.toFixed(4),
+        hasTokens: formattedBalance > 0,
+        walletLinked: true,
+        walletAddress,
+        tokenInfo: {
+          symbol,
+          decimals,
+          totalSupply: formatEther(totalSupply),
+          contractAddress: TACHI_CONTRACT,
+        },
       },
-    });
+      { headers: { 'Cache-Control': 'private, s-maxage=30, stale-while-revalidate=60' } }
+    );
   } catch (e: any) {
     console.error('[token/balance] Error:', e);
     return NextResponse.json(

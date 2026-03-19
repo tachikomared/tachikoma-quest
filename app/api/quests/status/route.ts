@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireCurrentUser } from '@/lib/auth';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 30;
 
 export async function GET() {
   try {
@@ -23,7 +23,10 @@ export async function GET() {
 
     const completed = rows.map((r: any) => r.quest_id);
 
-    return NextResponse.json({ completed });
+    return NextResponse.json(
+      { completed },
+      { headers: { 'Cache-Control': 'private, s-maxage=30, stale-while-revalidate=60' } }
+    );
   } catch (e: any) {
     return NextResponse.json({ completed: [], error: e.message }, { status: 500 });
   }

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireCurrentUser, getFullUser } from '@/lib/auth';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 30;
 
 async function getStreakInfo(userId: string) {
   try {
@@ -70,7 +70,10 @@ export async function GET() {
     const userWithStreak = user ? { ...user, streak, completedToday } : null;
 
     console.log('[api/me] Returning user:', user?.fcFid, 'guest:', user?.fcFid === 0, 'streak:', streak);
-    return NextResponse.json({ user: userWithStreak });
+    return NextResponse.json(
+      { user: userWithStreak },
+      { headers: { 'Cache-Control': 'private, s-maxage=30, stale-while-revalidate=60' } }
+    );
   } catch (e: any) {
     console.error('[api/me] Error:', e.message);
     return NextResponse.json({ user: null, error: e.message }, { status: 500 });

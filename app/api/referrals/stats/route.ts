@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireCurrentUser } from '@/lib/auth';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 export async function GET() {
   try {
@@ -39,12 +39,15 @@ export async function GET() {
       LIMIT 20
     `;
 
-    return NextResponse.json({
-      enlisted: enlistedRows[0]?.count || 0,
-      active: activeRows[0]?.count || 0,
-      xpEarned: activeRows[0]?.xp || 0,
-      recruits,
-    });
+    return NextResponse.json(
+      {
+        enlisted: enlistedRows[0]?.count || 0,
+        active: activeRows[0]?.count || 0,
+        xpEarned: activeRows[0]?.xp || 0,
+        recruits,
+      },
+      { headers: { 'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=120' } }
+    );
   } catch (e: any) {
     console.error('[referrals/stats] Error:', e.message);
     return NextResponse.json({ enlisted: 0, active: 0, xpEarned: 0, error: e.message }, { status: 500 });

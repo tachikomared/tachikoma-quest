@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 export async function GET() {
   const rows = await sql`
@@ -27,5 +27,8 @@ export async function GET() {
     points: r.points,
   }));
 
-  return NextResponse.json({ entries });
+  return NextResponse.json(
+    { entries },
+    { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' } }
+  );
 }
