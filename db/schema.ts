@@ -15,6 +15,11 @@ export const users = pgTable("users", {
   referralCode: text("referral_code").notNull().unique(),
   referredByCode: text("referred_by_code"),
   walletAddress: text("wallet_address"),
+  casinoGamesPlayed: integer("casino_games_played").default(0),
+  casinoGamesWon: integer("casino_games_won").default(0),
+  casinoTotalWon: integer("casino_total_won").default(0),
+  casinoTotalBurned: integer("casino_total_burned").default(0),
+  casinoTotalContributed: integer("casino_total_contributed").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -74,3 +79,24 @@ export const kv = pgTable("kv", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
 });
+
+// Casino games table
+export const casinoGames = pgTable("casino_games", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  playerSecret: text("player_secret").notNull(),
+  commitment: text("commitment").notNull(),
+  serverSecret: text("server_secret"),
+  betAmount: integer("bet_amount").notNull(),
+  status: text("status").notNull().default("committed"),
+  isWin: boolean("is_win"),
+  payout: integer("payout"),
+  burned: integer("burned"),
+  toCommunity: integer("to_community"),
+  seed: text("seed"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  revealedAt: timestamp("revealed_at"),
+  resolvedAt: timestamp("resolved_at"),
+});
+
+
