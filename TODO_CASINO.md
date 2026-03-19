@@ -50,6 +50,15 @@
 - [ ] "Community Builder" quest
 - [ ] "Pyromaniac" quest
 
+### 6. Token-Gated Telegram Community
+- [x] Design document (DESIGN_TELEGRAM_COMMUNITY.md)
+- [x] Telegram bot script (scripts/telegram-bot.js)
+- [x] Tier system implementation
+- [x] TACHI balance verification via viem
+- [ ] Deploy bot to @BotFather
+- [ ] Add bot to @tachiquest group
+- [ ] Test end-to-end verification flow
+
 ---
 
 ## Next Immediate Steps
@@ -74,7 +83,17 @@
 
 4. **Test on Farcaster mini app** with real wallet
 
+5. **Deploy Telegram bot:**
+   ```bash
+   # Create bot via @BotFather on Telegram
+   # Add bot token to .env
+   node scripts/telegram-bot.js
+   ```
+
+6. **Add bot to TachiQuest Telegram group**
+
 ## Notes
 - Player secret currently generated client-side (should be stored in encrypted session)
 - Win/loss calculation currently simulated (should come from contract event)
 - Community pool TVL hard-coded (should read from contract)
+- Telegram bot uses viem to read TACHI balance from blockchain
