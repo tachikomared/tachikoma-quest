@@ -281,7 +281,7 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
         <div className="mission-card holographic">
           <div className="flex items-center gap-3 mb-4">
             <div className="relative">
-              <img src={user.fcPfpUrl || '/default-avatar.png'} alt="" className="w-14 h-14 rounded border-2 border-[#ff1a1a] object-cover bg-[#1a1a24]" onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }} />
+              <img src={user.fcPfpUrl || '/default-avatar.png'} alt="" className="w-14 h-14 rounded border-2 border-[#ff1a1a] object-cover bg-[#1a1a24]" onError={(e) => { (e.target as HTMLImageElement).src = '/guest-avatar.jpg'; }} />
               <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#39ff14] rounded-full border-2 border-[#050508] flex items-center justify-center"><span className="text-xs">✓</span></div>
             </div>
             <div className="flex-1">
@@ -548,7 +548,7 @@ function PilotTab({ user }: { user: any }) {
       <div className="inline-flex items-center gap-2 text-[10px] font-mono px-2 py-1 rounded border border-[#00f0ff]/30 text-[#00f0ff] bg-[#00f0ff]/10 mb-1">{user.fcFid === 0 ? 'INVITE / TRUST GATED' : user.fcPowerBadge ? 'VERIFIED BLUE CHECK' : (Number(user.fcScore || 0) >= 0.8 ? 'TRUSTED USER' : 'DEGEN MODE')}</div>
       <div className="mission-card text-center">
         <div className="relative inline-block mb-4">
-          <img src={user.fcPfpUrl || '/default-avatar.png'} alt="" className="w-24 h-24 rounded-full border-4 border-[#ff1a1a] mx-auto object-cover bg-[#1a1a24]" onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }} />
+          <img src={user.fcPfpUrl || '/default-avatar.png'} alt="" className="w-24 h-24 rounded-full border-4 border-[#ff1a1a] mx-auto object-cover bg-[#1a1a24]" onError={(e) => { (e.target as HTMLImageElement).src = '/guest-avatar.jpg'; }} />
           <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#ff1a1a] text-[#050508] px-3 py-1 rounded-full text-xs font-black">PILOT</div>
         </div>
         <h2 className="text-xl font-black mb-1">{user.fcFid === 0 ? '👤 Guest Pilot' : `@${user.fcUsername}`}</h2>
