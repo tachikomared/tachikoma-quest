@@ -56,6 +56,7 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
   const [isGuestLoggingIn, setIsGuestLoggingIn] = useState(false);
   const [refCode, setRefCode] = useState('');
   const [urlRef, setUrlRef] = useState<string | null>(null);
+  const canGuestLogin = Boolean(refCode.trim() || urlRef); 
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -172,11 +173,11 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
             ) : (
               <button
                 onClick={handleGuestLogin}
-                disabled={isGuestLoggingIn || !refCode.trim()}
+                disabled={isGuestLoggingIn || !canGuestLogin}
                 className="w-full bg-[#ff1a1a]/20 hover:bg-[#ff1a1a]/30 border border-[#ff1a1a] text-[#ff1a1a] font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <span>🎮</span>
-                {isGuestLoggingIn ? 'Logging in...' : 'Continue as Guest'}
+                {isGuestLoggingIn ? 'Logging in...' : (canGuestLogin ? 'Continue as Guest' : 'Enter Referral Code')}
               </button>
             )}
 
