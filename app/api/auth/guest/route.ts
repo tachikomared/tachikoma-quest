@@ -1,16 +1,12 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { signSession } from '@/lib/auth';
-import { createPublicClient, http, verifyMessage } from 'viem';
-import { base } from 'viem/chains';
+import { verifyMessage } from 'viem';
 import { cookies } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
-const publicClient = createPublicClient({
-  chain: base,
-  transport: http('https://mainnet.base.org'),
-});
+const GUEST_PFP_URL = '/guest-avatar.jpg';
 
 export async function POST(req: Request) {
   try {
@@ -20,7 +16,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing params' }, { status: 400 });
     }
 
-    // Verify signature
     const isValid = await verifyMessage({
       address: address as `0x${string}`,
       message,
@@ -31,20 +26,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
-    // Extract timestamp from message to prevent replay attacks
     const timestampMatch = message.match(/Timestamp:\s*(\d+)/);
     const timestamp = timestampMatch ? parseInt(timestampMatch[1]) : 0;
     const now = Date.now();
-    
-    // Signature must be within 5 minutes
     if (now - timestamp > 5 * 60 * 1000) {
       return NextResponse.json({ error: 'Signature expired' }, { status: 401 });
     }
 
-    // Normalize address
     const normalizedAddress = address.toLowerCase();
 
-    // Check if wallet already belongs to an existing guest account
     const existingWallet = await sql`
       SELECT u.id, u.fc_fid, u.fc_username, u.referral_code, w.address
       FROM wallets w
@@ -55,14 +45,12 @@ export async function POST(req: Request) {
 
     let userId: string;
     let fid = 0;
-    let pfpUrl: string | null = null;
 
     const canUseSavedGuest = refCode === '__SAVED_GUEST__';
 
     if (existingWallet.length) {
       userId = existingWallet[0].id;
       fid = existingWallet[0].fc_fid || 0;
-      pfpUrl = existingWallet[0].pfp_url || null;
     } else if (canUseSavedGuest) {
       return NextResponse.json({ error: 'No saved guest session found for this wallet' }, { status: 403 });
     } else {
@@ -91,28 +79,17 @@ export async function POST(req: Request) {
       `;
     }
 
-    if (!pfpUrl) {
-      pfpUrl = `https://api.dicebear.com/9.x/thumbs/svg?seed=${normalizedAddress}`;
-    }
-
-    // Create session
-    const sessionToken = await signSession({ 
-      fid, 
-      username: 'guest', 
-      userId 
-    });
-
-    // Set cookie
+    const sessionToken = await signSession({ fid, username: 'guest', userId });
     const cookieStore = await cookies();
     cookieStore.set('session', sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
+      maxAge: 7 * 24 * 60 * 60,
       path: '/',
     });
 
-    return NextResponse.json({ success: true, isGuest: fid === 0, pfpUrl });
+    return NextResponse.json({ success: true, isGuest: fid === 0, pfpUrl: GUEST_PFP_URL });
   } catch (e: any) {
     console.error('[auth/guest] Error:', e);
     return NextResponse.json({ error: e.message || 'Guest auth failed' }, { status: 500 });
