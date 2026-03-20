@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/auth';
 import { CasinoResultCard, CommunityPoolTracker } from '@/components/casino-result-card';
 import { TACHI_CASINO_ABI, COMMUNITY_STAKING_POOL_ABI, COMMUNITY_BURNER_ABI } from '@/lib/contracts/casino';
 import { useAccount, useContractWrite, usePrepareContractWrite, useWaitForTransactionReceipt } from 'wagmi';
+import { useAuth } from '@/app/providers';
 
 const TACHI_CASINO_ADDRESS = '0x0000000000000000000000000000000000000000'; // TODO: replace with deployed address
 const COMMUNITY_POOL_ADDRESS = '0x0000000000000000000000000000000000000000'; // TODO: replace with deployed address

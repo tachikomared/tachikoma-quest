@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireCurrentUser } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { sql } from '@/lib/db';
 import crypto from 'crypto';
 
 // For now, mock contract addresses - will be replaced with real ones
@@ -32,16 +32,11 @@ export async function POST(request: NextRequest) {
       .digest('hex');
 
     // Store game in database
-    const game = await db.casinoGame.create({
-      data: {
-        userId: user.id,
-        playerSecret,
-        commitment,
-        betAmount,
-        status: 'committed',
-        // Server secret will be added later
-      },
-    });
+    const [game] = await sql`
+      INSERT INTO casino_games (user_id, player_secret, commitment, bet_amount, status, created_at)
+      VALUES (${user.id}, ${playerSecret}, ${commitment}, ${betAmount}, 'committed', NOW())
+      RETURNING id, player_secret, commitment, bet_amount, status, created_at
+    `;
 
     // TODO: Call contract commitGame(commitment, betAmount)
 
@@ -70,13 +65,14 @@ export async function GET(request: NextRequest) {
   try {
     const user = await requireCurrentUser();
     
-    const activeGame = await db.casinoGame.findFirst({
-      where: {
-        userId: user.id,
-        status: { in: ['committed', 'revealed'] },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const [activeGame] = await sql`
+      SELECT id, bet_amount, status, commitment, server_secret, created_at
+      FROM casino_games
+      WHERE user_id = ${user.id}
+        AND status IN ('committed', 'revealed')
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
 
     if (!activeGame) {
       return NextResponse.json({
@@ -87,11 +83,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       hasActiveGame: true,
       gameId: activeGame.id,
-      betAmount: activeGame.betAmount,
+      betAmount: activeGame.bet_amount,
       status: activeGame.status,
       commitment: activeGame.commitment,
-      serverSecret: activeGame.serverSecret,
-      createdAt: activeGame.createdAt,
+      serverSecret: activeGame.server_secret,
+      createdAt: activeGame.created_at,
     });
   } catch (error) {
     console.error('Casino status error:', error);

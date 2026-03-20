@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireCurrentUser } from '@/lib/auth';
-import { db } from '@/lib/db';
-import crypto from 'crypto';
+import { sql } from '@/lib/db';
 import { createHash } from 'crypto';
 
 /**
@@ -20,9 +19,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const game = await db.casinoGame.findUnique({
-      where: { id: gameId, userId: user.id },
-    });
+    const [game] = await sql`
+      SELECT id, bet_amount, status, commitment, server_secret, created_at
+      FROM casino_games
+      WHERE id = ${gameId} AND user_id = ${user.id}
+    `;
 
     if (!game) {
       return NextResponse.json(
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     // Verify commitment matches
     const calculatedCommitment = createHash('sha256')
-      .update(playerSecret + game.betAmount.toString())
+      .update(playerSecret + game.bet_amount.toString())
       .digest('hex');
 
     if (calculatedCommitment !== game.commitment) {
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     // Generate random seed
     const seed = createHash('sha256')
-      .update(playerSecret + game.serverSecret! + Math.floor(game.createdAt.getTime() / 1000).toString())
+      .update(playerSecret + game.server_secret + Math.floor(new Date(game.created_at).getTime() / 1000).toString())
       .digest('hex');
 
     // Determine win/lose (50% chance)
@@ -67,60 +68,53 @@ export async function POST(request: NextRequest) {
 
     if (isWin) {
       // Win: 2× payout
-      payout = game.betAmount * 2;
+      payout = game.bet_amount * 2;
       xpEarned = 50;
     } else {
       // Lose: 90% burned, 10% to community
-      burned = Math.floor((game.betAmount * 90) / 100);
-      toCommunity = Math.floor((game.betAmount * 10) / 100);
+      burned = Math.floor((game.bet_amount * 90) / 100);
+      toCommunity = Math.floor((game.bet_amount * 10) / 100);
       xpEarned = 10; // Consolation XP
     }
 
     // Update game
-    await db.casinoGame.update({
-      where: { id: gameId },
-      data: {
-        status: 'resolved',
-        isWin,
-        payout,
-        burned,
-        toCommunity,
-        resolvedAt: new Date(),
-        seed,
-      },
-    });
+    await sql`
+      UPDATE casino_games
+      SET status = 'resolved',
+          is_win = ${isWin},
+          payout = ${payout},
+          burned = ${burned},
+          to_community = ${toCommunity},
+          resolved_at = NOW(),
+          seed = ${seed}
+      WHERE id = ${gameId}
+    `;
 
     // Update user XP
     if (xpEarned > 0) {
-      await db.user.update({
-        where: { id: user.id },
-        data: {
-          xp: { increment: xpEarned },
-        },
-      });
+      await sql`
+        UPDATE users
+        SET xp = xp + ${xpEarned}
+        WHERE id = ${user.id}
+      `;
 
       // Record XP transaction
-      await db.xpTransaction.create({
-        data: {
-          userId: user.id,
-          amount: xpEarned,
-          type: 'casino',
-          description: isWin ? 'Casino win' : 'Casino consolation',
-        },
-      });
+      await sql`
+        INSERT INTO xp_transactions (user_id, amount, type, description, created_at)
+        VALUES (${user.id}, ${xpEarned}, 'casino', ${isWin ? 'Casino win' : 'Casino consolation'}, NOW())
+      `;
     }
 
     // Update user casino stats
-    await db.user.update({
-      where: { id: user.id },
-      data: {
-        casinoGamesPlayed: { increment: 1 },
-        casinoGamesWon: isWin ? { increment: 1 } : undefined,
-        casinoTotalWon: isWin ? { increment: payout } : undefined,
-        casinoTotalBurned: !isWin ? { increment: burned } : undefined,
-        casinoTotalContributed: !isWin ? { increment: toCommunity } : undefined,
-      },
-    });
+    await sql`
+      UPDATE users
+      SET casino_games_played = casino_games_played + 1,
+          casino_games_won = casino_games_won + ${isWin ? 1 : 0},
+          casino_total_won = casino_total_won + ${payout},
+          casino_total_burned = casino_total_burned + ${burned},
+          casino_total_contributed = casino_total_contributed + ${toCommunity}
+      WHERE id = ${user.id}
+    `;
 
     // TODO: Call contract resolveGame(playerSecret)
     // TODO: In production, contract would handle token transfers

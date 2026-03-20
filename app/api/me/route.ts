@@ -6,7 +6,6 @@ export const revalidate = 30;
 
 async function getStreakInfo(userId: string) {
   try {
-    // Get all daily check-ins ordered by date
     const dailyClaims = await sql`
       SELECT quest_id, verified_at, points_awarded
       FROM quest_claims
@@ -18,13 +17,9 @@ async function getStreakInfo(userId: string) {
       return { streak: 0, completedToday: false };
     }
 
-    // Check if completed today
     const today = new Date().toISOString().split('T')[0];
-    const completedToday = dailyClaims.some((c: any) =>
-      c.verified_at.toISOString().startsWith(today)
-    );
+    const completedToday = dailyClaims.some((c: any) => c.verified_at.toISOString().startsWith(today));
 
-    // Calculate streak
     let streak = 0;
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -38,15 +33,6 @@ async function getStreakInfo(userId: string) {
 
       if (claimDate.getTime() === expectedDate.getTime()) {
         streak++;
-      } else if (i === 0 && !completedToday) {
-        // Check if yesterday was completed (streak still alive)
-        const yesterday = new Date(now);
-        yesterday.setDate(yesterday.getDate() - 1);
-        if (claimDate.getTime() === yesterday.getTime()) {
-          streak++;
-        } else {
-          break;
-        }
       } else {
         break;
       }
@@ -63,15 +49,10 @@ export async function GET() {
   try {
     const current = await requireCurrentUser();
     const user = await getFullUser(current.fid, current.id);
-
-    // Get streak info
     const { streak, completedToday } = await getStreakInfo(current.id);
 
-    const userWithStreak = user ? { ...user, streak, completedToday } : null;
-
-    console.log('[api/me] Returning user:', user?.fcFid, 'guest:', user?.fcFid === 0, 'streak:', streak);
     return NextResponse.json(
-      { user: userWithStreak },
+      { user: user ? { ...user, streak, completedToday } : null },
       { headers: { 'Cache-Control': 'private, s-maxage=30, stale-while-revalidate=60' } }
     );
   } catch (e: any) {

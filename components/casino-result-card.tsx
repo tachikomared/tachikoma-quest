@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useAuth } from '@/lib/auth';
 
 interface CasinoResult {
   isWin: boolean;
@@ -13,8 +12,6 @@ interface CasinoResult {
 }
 
 export function CasinoResultCard({ result, user }: { result: CasinoResult; user: any }) {
-  const { auth } = useAuth();
-  
   if (!user) return null;
 
   const handleShareWin = async () => {

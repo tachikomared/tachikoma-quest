@@ -30,6 +30,7 @@ create table if not exists quests (
   action text not null,
   verification text not null,
   points integer not null,
+  category text not null default 'farcaster',
   repeatable boolean not null default false,
   enabled boolean not null default true,
   target jsonb not null default '{}'::jsonb,
@@ -91,3 +92,6 @@ alter table users add column if not exists casino_total_contributed integer not 
 create index if not exists idx_casino_games_user_id on casino_games(user_id);
 create index if not exists idx_casino_games_status on casino_games(status);
 create index if not exists idx_casino_games_created_at on casino_games(created_at);
+
+-- Add category index
+create index if not exists idx_quests_category on quests(category);

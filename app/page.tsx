@@ -18,7 +18,7 @@ const formatNumber = (value: number | string, maxFractionDigits = 0) => {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: maxFractionDigits }).format(num);
 };
 
-type Tab = 'missions' | 'warroom' | 'enlist' | 'pilot' | 'casino';
+type Tab = 'missions' | 'warroom' | 'enlist' | 'pilot';
 type MissionStatus = 'pending' | 'active' | 'completed' | 'failed';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
@@ -26,7 +26,6 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'warroom', label: 'WAR ROOM', icon: '📊' },
   { id: 'enlist', label: 'ENLIST', icon: '🔗' },
   { id: 'pilot', label: 'PILOT', icon: '🦀' },
-  { id: 'casino', label: 'CASINO', icon: '🎰' },
 ];
 
 export default function HomePage() {
@@ -161,7 +160,6 @@ export default function HomePage() {
         {activeTab === 'warroom' && <WarRoomTab user={user} isMiniApp={isMiniApp} />}
         {activeTab === 'enlist' && <EnlistTab user={user} isMiniApp={isMiniApp} />}
         {activeTab === 'pilot' && <PilotTab user={user} />}
-        {activeTab === 'casino' && <CasinoTab user={user} />}
       </main>
 
       {/* Footer Warning Stripe */}

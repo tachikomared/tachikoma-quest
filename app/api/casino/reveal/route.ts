@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireCurrentUser } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { sql } from '@/lib/db';
 import crypto from 'crypto';
 
 /**
@@ -21,9 +21,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const game = await db.casinoGame.findUnique({
-      where: { id: gameId, userId: user.id },
-    });
+    const [game] = await sql`
+      SELECT id, status
+      FROM casino_games
+      WHERE id = ${gameId} AND user_id = ${user.id}
+    `;
 
     if (!game) {
       return NextResponse.json(
@@ -43,14 +45,13 @@ export async function POST(request: NextRequest) {
     const serverSecret = crypto.randomBytes(32).toString('hex');
 
     // Update game with server secret
-    await db.casinoGame.update({
-      where: { id: gameId },
-      data: {
-        serverSecret,
-        status: 'revealed',
-        revealedAt: new Date(),
-      },
-    });
+    await sql`
+      UPDATE casino_games
+      SET server_secret = ${serverSecret},
+          status = 'revealed',
+          revealed_at = NOW()
+      WHERE id = ${gameId}
+    `;
 
     // TODO: Call contract revealGame(user.address, serverSecret)
 
