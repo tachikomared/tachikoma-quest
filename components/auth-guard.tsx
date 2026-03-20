@@ -1,9 +1,9 @@
 'use client';
 
 import { useAuth } from '@/app/providers';
-import { useConnect, useAccount, useSignMessage } from 'wagmi';
+import { useConnect, useAccount, useDisconnect, useSignMessage } from 'wagmi';
 import { sdk } from '@farcaster/miniapp-sdk';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { auth, isMiniApp, refreshAuth } = useAuth();
@@ -50,11 +50,18 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
 function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean; onGuestLogin: () => void }) {
   const { connect, connectors, isPending: isConnecting } = useConnect();
+  const { disconnect } = useDisconnect();
   const { isConnected, address } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const [isGuestLoggingIn, setIsGuestLoggingIn] = useState(false);
   const [refCode, setRefCode] = useState('');
-  const urlRef = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ref') : null;
+  const [urlRef, setUrlRef] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setUrlRef(new URLSearchParams(window.location.search).get('ref'));
+    }
+  }, []);
 
   const handleConnectFarcaster = async () => {
     if (isMiniApp) {
@@ -179,7 +186,7 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
                   ✓ Wallet connected: {address?.slice(0, 6)}...{address?.slice(-4)}
                 </p>
                 <button
-                  onClick={() => window.location.reload()}
+                  onClick={() => disconnect()}
                   className="text-[10px] uppercase tracking-wider px-2 py-1 rounded border border-[#ff1a1a]/30 text-[#ff1a1a] bg-[#ff1a1a]/10 hover:bg-[#ff1a1a]/20"
                 >
                   Disconnect Wallet
