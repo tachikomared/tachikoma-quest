@@ -159,7 +159,7 @@ export default function HomePage() {
         )}
         {activeTab === 'warroom' && <WarRoomTab user={user} isMiniApp={isMiniApp} />}
         {activeTab === 'enlist' && <EnlistTab user={user} isMiniApp={isMiniApp} />}
-        {activeTab === 'pilot' && <PilotTab user={user} />}
+        {activeTab === 'pilot' && <PilotTab user={user} />} 
       </main>
 
       {/* Footer Warning Stripe */}
@@ -401,6 +401,9 @@ function MissionsTab({
       )}
 
       {/* Mission Briefings */}
+      <div className="text-xs text-[#ff6b00] font-mono border border-[#ff6b00]/30 bg-[#ff6b00]/10 rounded p-2">
+        ⚠️ Web3 reality check: if you skip the invite rules, the bots and freeloaders will absolutely cosplay as your community.
+      </div>
       <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest">
         <span className="text-lg">⚔️</span>
         <span>ACTIVE MISSIONS</span>
@@ -494,6 +497,16 @@ function MissionsTab({
         user={user}
         isMiniApp={isMiniApp}
       />
+    </div>
+  );
+}
+
+// Casino Tab placeholder
+function CasinoTab() {
+  return (
+    <div className="mission-card">
+      <div className="text-[#ff1a1a] font-black text-sm tracking-widest mb-2">🎰 CASINO / STAKING</div>
+      <p className="text-xs text-[#8a8a9a]">Casino mechanics are off until the contract/UI is restored. Staking can be wired here next with a dedicated pool action and proper contract addresses.</p>
     </div>
   );
 }
