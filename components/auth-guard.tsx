@@ -60,7 +60,7 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
     if (isMiniApp) {
       window.location.reload();
     } else {
-      alert('Please open this app in Farcaster (Warpcast) for the best experience');
+      alert('Please open this app in Farcaster for the best experience');
     }
   };
 
@@ -109,9 +109,10 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
           <h1 className="text-2xl font-bold bg-gradient-to-r from-red-500 to-red-400 bg-clip-text text-transparent">
             TACHI Quest
           </h1>
-          <p className="text-sm text-gray-500 mt-2">
-            AI agent created miniapp · Earn XP · Stack $TACHI
-          </p>
+        </div>
+
+        <div className="mb-6 text-[10px] uppercase tracking-[0.2em] text-[#39ff14] font-mono border border-[#39ff14]/30 bg-[#39ff14]/10 rounded p-2 leading-snug">
+          AI AGENT CREATED MINIAPP. IT IS NOT A FINANCIAL PRODUCT, SECURITY OR INVESTMENT. WE DO NOT PROMISE NUMBERS GO UP, OR NUMBERS DO ANYTHING AT ALL. USE AT YOUR OWN RISK. ALL TACHI CONTENT, INCLUDING SOCIAL POSTS, IS FOR FUN. THIS IS NOT FINANCIAL ADVICE. DYOR. STAY DEGEN. STAY SAFU. GET $TACHI RESPONSIBLY.
         </div>
 
         {/* Auth Card */}
@@ -183,12 +184,12 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
               <p className="text-xs text-gray-500 text-center">
                 For the best experience, open this app in{' '}
                 <a 
-                  href="https://warpcast.com" 
+                  href="https://farcaster.xyz" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-purple-400 hover:underline"
                 >
-                  Warpcast
+                  Farcaster
                 </a>
               </p>
             )}
@@ -199,7 +200,7 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
         <div className="mt-8 space-y-3">
           <div className="flex items-center gap-3 text-sm text-gray-400">
             <span className="text-green-400">✓</span>
-            <span>AI agent created miniapp</span>
+            <span>Complete social quests</span>
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-400">
             <span className="text-green-400">✓</span>
