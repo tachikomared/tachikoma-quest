@@ -115,6 +115,10 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
           AI AGENT CREATED MINIAPP. IT IS NOT A FINANCIAL PRODUCT, SECURITY OR INVESTMENT. WE DO NOT PROMISE NUMBERS GO UP, OR NUMBERS DO ANYTHING AT ALL. USE AT YOUR OWN RISK. ALL TACHI CONTENT, INCLUDING SOCIAL POSTS, IS FOR FUN. THIS IS NOT FINANCIAL ADVICE. DYOR. STAY DEGEN. STAY SAFU. GET $TACHI RESPONSIBLY.
         </div>
 
+        <div className="mb-4 text-center text-xs text-[#8a8a9a]">
+          For the best experience, open this app in <a href="https://farcaster.xyz" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">Farcaster</a>
+        </div>
+
         {/* Auth Card */}
         <div className="bg-gray-900/50 rounded-2xl p-6 border border-gray-800">
           <h2 className="text-lg font-bold text-white mb-4 text-center">
