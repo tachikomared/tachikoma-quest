@@ -729,6 +729,7 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   const [statsLoading, setStatsLoading] = useState(false);
   const referralCode = user?.referralCode || 'NO-CODE';
   const referralLink = `${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${referralCode}`;
+  const remainingInvites = Math.max(0, (user?.inviteLimit ?? 5) - (user?.invitesUsed ?? 0));
 
   useEffect(() => {
     if (!user) return;
@@ -771,6 +772,9 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
 
   return (
     <div className="space-y-4">
+      <div className="text-xs text-[#ff6b00] font-mono border border-[#ff6b00]/30 bg-[#ff6b00]/10 rounded p-2">
+        ⚠️ Web3 reality check: if you skip the invite rules, the bots and freeloaders will absolutely cosplay as your community.
+      </div>
       <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest">
         <span className="text-lg">🔗</span>
         <span>ENLISTMENT</span>
@@ -807,6 +811,7 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
       {/* Access Link */}
       <div className="mission-card border-[#00f0ff]">
         <div className="text-[#00f0ff] text-xs font-mono mb-2 tracking-wider">/// REFERRAL LINK ///</div>
+        <div className="text-[10px] text-[#8a8a9a] font-mono mb-2">Remaining invites: {remainingInvites}/5</div>
         <div className="bg-[#050508] border border-[#1a1a24] rounded p-3 mb-3 overflow-hidden">
           <div className="text-[#ff1a1a] font-mono text-sm truncate">
             {referralLink}
