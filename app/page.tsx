@@ -25,7 +25,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'casino', label: 'CASINO', icon: '🎰' },
   { id: 'warroom', label: 'WAR ROOM', icon: '📊' },
   { id: 'enlist', label: 'ENLIST', icon: '🔗' },
-  { id: 'pilot', label: 'PILOT', icon: '🦀' },
+  { id: 'pilot', label: 'PILOT', icon: '<img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" />' },
 ];
 
 export default function HomePage() {
@@ -82,7 +82,7 @@ export default function HomePage() {
         <div className="max-w-lg mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="text-3xl">🦀</div>
+              <div className="text-3xl"><img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /></div>
               <div>
                 <h1 className="text-lg font-black tracking-widest text-[#ff1a1a]" style={{ fontFamily: 'Orbitron, sans-serif' }}>
                   TACHI-QUEST
@@ -314,7 +314,7 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
                   {status === 'active' && <span className="text-xs bg-[#00f0ff]/20 text-[#00f0ff] px-2 py-0.5 rounded font-mono animate-pulse">⏳ EXECUTING...</span>}
                 </div>
                 <p className="text-xs text-[#8a8a9a] mb-2">{mission.description}</p>
-                <div className="flex items-center gap-3 text-xs"><span className="text-[#ff6b00] font-bold">+{mission.points} XP</span><span className="text-[#5a5a6a]">•</span><span className="text-[#00f0ff]">🦀 {mission.tachiReward || 0} $TACHI</span></div>
+                <div className="flex items-center gap-3 text-xs"><span className="text-[#ff6b00] font-bold">+{mission.points} XP</span><span className="text-[#5a5a6a]">•</span><span className="text-[#00f0ff]"><img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /> {mission.tachiReward || 0} $TACHI</span></div>
               </div>
             </div>
             <div className="flex gap-2 mt-4">
@@ -391,7 +391,7 @@ function WarRoomTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   return (
     <div className="space-y-4">
       <div className="mission-card">
-        <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest mb-3"><span className="text-lg">🦀</span><span>TOKEN HOLDERS</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
+        <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest mb-3"><span className="text-lg"><img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /></span><span>TOKEN HOLDERS</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
         <div className="flex flex-wrap gap-1.5 mb-3">
           {[
             { label: 'TACHIKOMA PRIME', color: 'text-[#00f0ff] border-[#00f0ff]/50' },
@@ -417,7 +417,7 @@ function WarRoomTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
             })}
           </div>
         )}
-        {user && <button onClick={async () => { const rank = holders.findIndex(h => h.username === user.fcUsername) + 1; const holder = holders.find(h => h.username === user.fcUsername); const tier = holder ? getHolderTier(holder.balance, rank) : { label: 'CRAB' }; const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}?tab=warroom`; const text = `🦀 Check out the $TACHI Holders Leaderboard! Rank #${rank || '???'} ${tier.label} // Holding ${holder?.balance || '0'} $TACHI`; if (isMiniApp && typeof window !== 'undefined' && (window as any).sdk?.actions?.composeCast) { const embedUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}?tab=warroom`; const footer = `\n\n🎮 ${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}`; await (window as any).sdk.actions.composeCast({ text: text + footer, embeds: [embedUrl] }); } else { const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); const encodedText = encodeURIComponent(text); const encodedEmbed = encodeURIComponent(shareUrl); if (isMobile) { const deepLink = `warpcast://compose?text=${encodedText}&embeds[]=${encodedEmbed}`; window.location.href = deepLink; setTimeout(() => { window.open(`https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`, '_blank'); }, 2000); } else { window.open(`https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`, '_blank'); } } }} className="mt-4 mecha-button w-full text-xs bg-[#ff1a1a]/10 border-[#ff1a1a]">📡 BROADCAST LEADERBOARD</button>}
+        {user && <button onClick={async () => { const rank = holders.findIndex(h => h.username === user.fcUsername) + 1; const holder = holders.find(h => h.username === user.fcUsername); const tier = holder ? getHolderTier(holder.balance, rank) : { label: 'CRAB' }; const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}?tab=warroom`; const text = `<img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /> Check out the $TACHI Holders Leaderboard! Rank #${rank || '???'} ${tier.label} // Holding ${holder?.balance || '0'} $TACHI`; if (isMiniApp && typeof window !== 'undefined' && (window as any).sdk?.actions?.composeCast) { const embedUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}?tab=warroom`; const footer = `\n\n🎮 ${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}`; await (window as any).sdk.actions.composeCast({ text: text + footer, embeds: [embedUrl] }); } else { const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); const encodedText = encodeURIComponent(text); const encodedEmbed = encodeURIComponent(shareUrl); if (isMobile) { const deepLink = `warpcast://compose?text=${encodedText}&embeds[]=${encodedEmbed}`; window.location.href = deepLink; setTimeout(() => { window.open(`https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`, '_blank'); }, 2000); } else { window.open(`https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`, '_blank'); } } }} className="mt-4 mecha-button w-full text-xs bg-[#ff1a1a]/10 border-[#ff1a1a]">📡 BROADCAST LEADERBOARD</button>}
       </div>
 
       <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest"><span className="text-lg">📊</span><span>TOP OPERATIVES</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
@@ -476,7 +476,7 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
 
   const handleShare = async () => {
     const shareUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app';
-    const text = `🦀 TACHI-QUEST // JOIN THE CRAB ARMY // Use my access key: ${referralCode} // Complete missions. Earn XP. Stack $TACHI.\n\n🎮 ${shareUrl}`;
+    const text = `<img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /> TACHI-QUEST // JOIN THE CRAB ARMY // Use my access key: ${referralCode} // Complete missions. Earn XP. Stack $TACHI.\n\n🎮 ${shareUrl}`;
     if (isMiniApp) {
       await sdk.actions.composeCast({ text, embeds: [shareUrl] });
     } else if (navigator.share) {
@@ -545,7 +545,7 @@ function PilotTab({ user }: { user: any }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest"><span className="text-lg">🦀</span><span>PILOT PROFILE</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
+      <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest"><span className="text-lg"><img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /></span><span>PILOT PROFILE</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
       <div className="inline-flex items-center gap-2 text-[10px] font-mono px-2 py-1 rounded border border-[#00f0ff]/30 text-[#00f0ff] bg-[#00f0ff]/10 mb-1">{user.fcFid === 0 ? 'INVITE / TRUST GATED' : user.fcPowerBadge ? 'VERIFIED BLUE CHECK' : (Number(user.fcScore || 0) >= 0.8 ? 'TRUSTED USER' : 'DEGEN MODE')}</div>
       <div className="mission-card text-center">
         <div className="relative inline-block mb-4">
