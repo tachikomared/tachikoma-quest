@@ -525,21 +525,21 @@ function WarRoomTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   }, []);
 
   const getRankStyle = (rank: number) => {
-    if (rank === 1) return 'text-[#ff6b00] border-[#ff6b00]';
-    if (rank === 2) return 'text-[#8a8a9a] border-[#8a8a9a]';
-    if (rank === 3) return 'text-[#cd7f32] border-[#cd7f32]';
+    if (rank === 1) return 'text-[#00f0ff] border-[#00f0ff]';
+    if (rank === 2) return 'text-[#39ff14] border-[#39ff14]';
+    if (rank === 3) return 'text-[#ff6b00] border-[#ff6b00]';
     return 'text-[#5a5a6a] border-[#1a1a24]';
   };
 
   // Holder milestone tiers
   const getHolderTier = (balance: string, rank: number) => {
     const bal = Number(balance);
-    if (rank === 1) return { label: 'CRAB KING', color: 'text-[#ff6b00] border-[#ff6b00] bg-[#ff6b00]/10' };
-    if (rank <= 3) return { label: 'WHALE', color: 'text-[#00f0ff] border-[#00f0ff] bg-[#00f0ff]/10' };
-    if (rank <= 10) return { label: 'SHARK', color: 'text-[#39ff14] border-[#39ff14] bg-[#39ff14]/10' };
-    if (bal >= 1000) return { label: 'SQUID', color: 'text-[#ff1a1a] border-[#ff1a1a] bg-[#ff1a1a]/10' };
-    if (bal >= 500) return { label: 'OCTOPUS', color: 'text-[#8a8a9a] border-[#8a8a9a] bg-[#8a8a9a]/10' };
-    return { label: 'CRAB', color: 'text-[#5a5a6a] border-[#5a5a6a] bg-[#5a5a6a]/10' };
+    if (rank === 1) return { label: 'TACHIKOMA PRIME', color: 'text-[#00f0ff] border-[#00f0ff] bg-[#00f0ff]/10' };
+    if (rank <= 3) return { label: 'MECHA ACE', color: 'text-[#39ff14] border-[#39ff14] bg-[#39ff14]/10' };
+    if (rank <= 10) return { label: 'GHOST PILOT', color: 'text-[#ff6b00] border-[#ff6b00] bg-[#ff6b00]/10' };
+    if (bal >= 1000) return { label: 'STEALTH DRONE', color: 'text-[#ff1a1a] border-[#ff1a1a] bg-[#ff1a1a]/10' };
+    if (bal >= 500) return { label: 'CHASSIS', color: 'text-[#8a8a9a] border-[#8a8a9a] bg-[#8a8a9a]/10' };
+    return { label: 'PROTOCRAB', color: 'text-[#5a5a6a] border-[#5a5a6a] bg-[#5a5a6a]/10' };
   };
 
 
@@ -556,10 +556,10 @@ function WarRoomTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
         {/* Milestone legend */}
         <div className="flex flex-wrap gap-1.5 mb-3">
           {[
-            { label: 'CRAB KING', color: 'text-[#ff6b00] border-[#ff6b00]/50' },
-            { label: 'WHALE', color: 'text-[#00f0ff] border-[#00f0ff]/50' },
-            { label: 'SHARK', color: 'text-[#39ff14] border-[#39ff14]/50' },
-            { label: 'SQUID', color: 'text-[#ff1a1a] border-[#ff1a1a]/50' },
+            { label: 'TACHIKOMA PRIME', color: 'text-[#00f0ff] border-[#00f0ff]/50' },
+            { label: 'MECHA ACE', color: 'text-[#39ff14] border-[#39ff14]/50' },
+            { label: 'GHOST PILOT', color: 'text-[#ff6b00] border-[#ff6b00]/50' },
+            { label: 'STEALTH DRONE', color: 'text-[#ff1a1a] border-[#ff1a1a]/50' },
           ].map((tier) => (
             <span key={tier.label} className={`text-[8px] px-1.5 py-0.5 border rounded ${tier.color}`}>
               {tier.label}
@@ -945,6 +945,7 @@ function PilotTab({ user }: { user: any }) {
 
       {/* Pilot Card */}
       <div className="mission-card text-center">
+        <div className="text-[10px] text-[#8a8a9a] font-mono mb-3">STAKING + TRANSFERS ARE ALIVE EVEN IF YOU'RE WALLET-LESS. TRY YOUR LUCK, CRAB.</div>
         <div className="relative inline-block mb-4">
           <img 
             src={user.fcPfpUrl || '/default-avatar.png'} 
@@ -1042,12 +1043,8 @@ function PilotTab({ user }: { user: any }) {
       </div>
 
       {/* $TACHI Transfer Section - only show if wallet connected and has balance */}
-      {user.walletAddress && Number(formattedBalance) > 0 && (
-        <>
-          <TachiTransferSection balance={formattedBalance} displayBalance={displayBalance} />
-          <TachiBurnSection balance={formattedBalance} displayBalance={displayBalance} />
-        </>
-      )}
+      <TachiTransferSection balance={formattedBalance} displayBalance={displayBalance} />
+      <TachiBurnSection balance={formattedBalance} displayBalance={displayBalance} />
 
       {/* Access Key */}
       <div className="mission-card">
