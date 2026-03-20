@@ -485,9 +485,7 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
 
   return (
     <div className="space-y-4">
-      <div className="text-[10px] uppercase tracking-[0.2em] text-[#39ff14] font-mono border border-[#39ff14]/30 bg-[#39ff14]/10 rounded p-2 leading-snug">
-        IS A DECENTRALIZED ON-CHAIN MINING GAME. IT IS NOT A FINANCIAL PRODUCT, SECURITY OR INVESTMENT. WE DO NOT PROMISE NUMBERS GO UP, OR NUMBERS DO ANYTHING AT ALL. USE AT YOUR OWN RISK. ALL TACHI CONTENT, INCLUDING SOCIAL POSTS, IS FOR FUN. THIS IS NOT FINANCIAL ADVICE. DYOR. STAY DEGEN. STAY SAFU. GET $TACHI RESPONSIBLY.
-      </div>
+
       <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest">
         <span className="text-lg">🔗</span>
         <span>ENLISTMENT</span>

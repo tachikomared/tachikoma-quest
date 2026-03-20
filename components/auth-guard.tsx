@@ -110,7 +110,7 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
             TACHI Quest
           </h1>
           <p className="text-sm text-gray-500 mt-2">
-            Complete quests · Earn XP · Stack $TACHI
+            AI agent created miniapp · Earn XP · Stack $TACHI
           </p>
         </div>
 
@@ -199,7 +199,7 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
         <div className="mt-8 space-y-3">
           <div className="flex items-center gap-3 text-sm text-gray-400">
             <span className="text-green-400">✓</span>
-            <span>Complete social quests</span>
+            <span>AI agent created miniapp</span>
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-400">
             <span className="text-green-400">✓</span>
