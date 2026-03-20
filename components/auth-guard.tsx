@@ -56,7 +56,6 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
   const [isGuestLoggingIn, setIsGuestLoggingIn] = useState(false);
   const [refCode, setRefCode] = useState('');
   const [urlRef, setUrlRef] = useState<string | null>(null);
-  const canGuestLogin = Boolean(refCode.trim() || urlRef); 
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -74,24 +73,27 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
 
   const handleGuestLogin = async () => {
     if (!address) {
-      // Connect wallet first
       if (connectors[0]) {
         connect({ connector: connectors[0] });
       }
       return;
     }
 
+    const referralCode = refCode.trim().toUpperCase();
+    if (!referralCode) {
+      alert('Referral code required');
+      return;
+    }
+
     setIsGuestLoggingIn(true);
     try {
-      // Sign message to verify wallet ownership
       const message = `TACHI Quest Guest Login\n\nWallet: ${address}\nTimestamp: ${Date.now()}`;
       const signature = await signMessageAsync({ message });
 
-      // Create guest session
       const res = await fetch('/api/auth/guest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, signature, message, refCode: refCode || urlRef }),
+        body: JSON.stringify({ address, signature, message, refCode: referralCode }),
       });
 
       if (res.ok) {
@@ -173,11 +175,11 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
             ) : (
               <button
                 onClick={handleGuestLogin}
-                disabled={isGuestLoggingIn || !canGuestLogin}
+                disabled={isGuestLoggingIn || !refCode.trim()}
                 className="w-full bg-[#ff1a1a]/20 hover:bg-[#ff1a1a]/30 border border-[#ff1a1a] text-[#ff1a1a] font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <span>🎮</span>
-                {isGuestLoggingIn ? 'Logging in...' : (canGuestLogin ? 'Continue as Guest' : 'Enter Referral Code')}
+                {isGuestLoggingIn ? 'Logging in...' : 'Continue as Guest'}
               </button>
             )}
 
