@@ -406,6 +406,7 @@ function MissionsTab({
         <span>ACTIVE MISSIONS</span>
         <div className="flex-1 h-px bg-[#ff1a1a]/30" />
       </div>
+      <div className="text-[10px] text-[#8a8a9a] font-mono">Each mission is a deployable objective. Complete, verify, then flex like you meant it.</div>
       
       {missions.map((mission) => {
         const status = statuses[mission.id] || 'pending';
@@ -942,6 +943,9 @@ function PilotTab({ user }: { user: any }) {
         <span>PILOT PROFILE</span>
         <div className="flex-1 h-px bg-[#ff1a1a]/30" />
       </div>
+      <div className="inline-flex items-center gap-2 text-[10px] font-mono px-2 py-1 rounded border border-[#00f0ff]/30 text-[#00f0ff] bg-[#00f0ff]/10 mb-1">
+        {user.fcFid === 0 ? 'INVITE / TRUST GATED' : user.fcPowerBadge ? 'VERIFIED BLUE CHECK' : (Number(user.fcScore || 0) >= 0.8 ? 'TRUSTED USER' : 'DEGEN MODE')}
+      </div>
 
       {/* Pilot Card */}
       <div className="mission-card text-center">
@@ -1006,6 +1010,7 @@ function PilotTab({ user }: { user: any }) {
         <div className="text-[#00f0ff] text-xs font-mono mb-3 tracking-wider">/// WALLET STATUS ///</div>
         {user.walletAddress ? (
           <div className="space-y-3">
+        <div className="text-[10px] text-[#8a8a9a] font-mono">STAKING MODULE COMING NEXT. THIS SLOT IS RESERVED FOR POOL ACTIONS.</div>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-[#39ff14]/20 flex items-center justify-center">
                 <span className="text-[#39ff14] text-lg">✓</span>
@@ -1043,8 +1048,8 @@ function PilotTab({ user }: { user: any }) {
       </div>
 
       {/* $TACHI Transfer Section - only show if wallet connected and has balance */}
-      <TachiTransferSection balance={formattedBalance} displayBalance={displayBalance} />
-      <TachiBurnSection balance={formattedBalance} displayBalance={displayBalance} />
+      <TachiTransferSection balance={formattedBalance} displayBalance={displayBalance} user={user} />
+      <TachiBurnSection balance={formattedBalance} displayBalance={displayBalance} user={user} />
 
       {/* Access Key */}
       <div className="mission-card">
@@ -1058,13 +1063,14 @@ function PilotTab({ user }: { user: any }) {
 }
 
 // $TACHI Transfer Component
-function TachiTransferSection({ balance, displayBalance }: { balance: string; displayBalance: string }) {
+function TachiTransferSection({ balance, displayBalance, user }: { balance: string; displayBalance: string; user: any }) {
   const [toAddress, setToAddress] = useState('');
   const [amount, setAmount] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const { writeAndOpen } = useMobileWriteContract();
 
   const handleTransfer = async () => {
+    if (!user?.walletAddress) return;
     if (!toAddress || !amount) return;
     
     setStatus('loading');
@@ -1130,11 +1136,12 @@ function TachiTransferSection({ balance, displayBalance }: { balance: string; di
             </button>
           </div>
           <div className="text-xs text-[#5a5a6a] mt-1">Available: {displayBalance} $TACHI</div>
+          {!user?.walletAddress && <div className="text-[10px] text-[#ff6b00] mt-1">Connect a wallet to actually send or burn.</div>}
         </div>
         
         <button
           onClick={handleTransfer}
-          disabled={status === 'loading' || !toAddress || !amount}
+          disabled={status === 'loading' || !toAddress || !amount || !user?.walletAddress}
           className="mecha-button w-full text-xs bg-[#ff1a1a]/20 border-[#ff1a1a] disabled:opacity-50"
         >
           {status === 'loading' ? '⏳ BROADCASTING...' : '🚀 SEND $TACHI'}
@@ -1152,12 +1159,13 @@ function TachiTransferSection({ balance, displayBalance }: { balance: string; di
 }
 
 // $TACHI Burn Component
-function TachiBurnSection({ balance, displayBalance }: { balance: string; displayBalance: string }) {
+function TachiBurnSection({ balance, displayBalance, user }: { balance: string; displayBalance: string; user: any }) {
   const [amount, setAmount] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const { writeAndOpen } = useMobileWriteContract();
 
   const handleBurn = async () => {
+    if (!user?.walletAddress) return;
     if (!amount) return;
 
     const parsed = Number(amount);
@@ -1218,7 +1226,7 @@ function TachiBurnSection({ balance, displayBalance }: { balance: string; displa
         
         <button
           onClick={handleBurn}
-          disabled={status === 'loading' || !amount}
+          disabled={status === 'loading' || !amount || !user?.walletAddress}
           className="mecha-button w-full text-xs bg-[#ff1a1a]/20 border-[#ff1a1a] disabled:opacity-50"
         >
           {status === 'loading' ? '⏳ BROADCASTING...' : '🔥 BURN $TACHI'}
