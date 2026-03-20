@@ -56,12 +56,15 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
   const [isGuestLoggingIn, setIsGuestLoggingIn] = useState(false);
   const [refCode, setRefCode] = useState('');
   const [urlRef, setUrlRef] = useState<string | null>(null);
+  const [savedGuestWallet, setSavedGuestWallet] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setUrlRef(new URLSearchParams(window.location.search).get('ref'));
+      const params = new URLSearchParams(window.location.search);
+      setUrlRef(params.get('ref'));
+      setSavedGuestWallet(window.localStorage.getItem(`tachi_guest_${address?.toLowerCase() || ''}`) === '1');
     }
-  }, []);
+  }, [address]);
 
   const handleConnectFarcaster = async () => {
     if (isMiniApp) {
@@ -75,6 +78,30 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
     if (!address) {
       if (connectors[0]) {
         connect({ connector: connectors[0] });
+      }
+      return;
+    }
+
+    if (savedGuestWallet) {
+      setIsGuestLoggingIn(true);
+      try {
+        const message = `TACHI Quest Guest Login\n\nWallet: ${address}\nTimestamp: ${Date.now()}`;
+        const signature = await signMessageAsync({ message });
+        const res = await fetch('/api/auth/guest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address, signature, message, refCode: '__SAVED_GUEST__' }),
+        });
+        if (res.ok) {
+          onGuestLogin();
+          return;
+        }
+        const err = await res.text();
+        alert('Guest login failed: ' + err);
+      } catch (e: any) {
+        alert('Guest login failed: ' + (e.message || 'Unknown error'));
+      } finally {
+        setIsGuestLoggingIn(false);
       }
       return;
     }

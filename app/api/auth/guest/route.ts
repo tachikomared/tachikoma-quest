@@ -56,11 +56,14 @@ export async function POST(req: Request) {
     let userId: string;
     let fid = 0;
 
+    const canUseSavedGuest = refCode === '__SAVED_GUEST__';
+
     if (existingWallet.length) {
       userId = existingWallet[0].id;
       fid = existingWallet[0].fc_fid || 0;
+    } else if (canUseSavedGuest) {
+      return NextResponse.json({ error: 'No saved guest session found for this wallet' }, { status: 403 });
     } else {
-      // Guest wallet access always requires a valid code unless it is a trusted Farcaster account.
       if (!refCode) {
         return NextResponse.json({ error: 'Referral code required for wallet guest access' }, { status: 403 });
       }
