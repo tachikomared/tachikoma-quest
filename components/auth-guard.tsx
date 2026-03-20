@@ -175,29 +175,17 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
               </button>
             )}
 
-            <div className="text-center text-xs text-[#8a8a9a]">
-              For the best experience, open this app in <a href="https://farcaster.xyz/miniapps/nLEf2pIdso35/tachi-quest" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">Farcaster</a>
-            </div>
-
             {isConnected && (
               <p className="text-xs text-green-400 text-center">
                 ✓ Wallet connected: {address?.slice(0, 6)}...{address?.slice(-4)}
               </p>
             )}
 
-            {!isMiniApp && (
-              <p className="text-xs text-gray-500 text-center">
-                For the best experience, open this app in{' '}
-                <a 
-                  href="https://farcaster.xyz" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-purple-400 hover:underline"
-                >
-                  Farcaster
-                </a>
-              </p>
-            )}
+            <div className="text-center text-xs text-[#8a8a9a]">
+              For the best experience, open this app in <a href="https://farcaster.xyz/miniapps/nLEf2pIdso35/tachi-quest" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">Farcaster</a>
+            </div>
+
+
           </div>
         </div>
 
