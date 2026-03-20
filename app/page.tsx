@@ -405,10 +405,11 @@ function WarRoomTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
             {holders.map((holder, i) => {
               const tier = getHolderTier(holder.balance, i + 1);
               const displayName = holder.username ? `@${holder.username}` : holder.ens || `${holder.address?.slice(0, 6)}...${holder.address?.slice(-4)}`;
+              const tierAvatar = i === 0 ? '/diamond.png' : i === 1 ? '/gold.png' : i === 2 ? '/silver.png' : '/bronze.png';
               return (
                 <a key={`${holder.address}-${i}`} href={`https://basescan.org/address/${holder.address}`} target="_blank" rel="noreferrer" className={`flex items-center gap-3 p-2 border rounded ${holder.username === user?.fcUsername ? 'bg-[#ff1a1a]/10 border-[#ff1a1a]/30' : 'bg-[#050508] border-[#1a1a24]'} hover:border-[#ff1a1a]/40 transition-colors`}>
                   <div className="flex flex-col items-center"><div className={`w-7 h-7 rounded border-2 flex items-center justify-center font-black text-[10px] ${i < 3 ? 'text-[#ff6b00] border-[#ff6b00]' : 'text-[#5a5a6a] border-[#1a1a24]'}`}>{i + 1}</div></div>
-                  <div className="w-8 h-8 rounded bg-[#1a1a24] border border-[#252535] overflow-hidden"><img src={i === 0 ? '/tachikoma-prime.jpg' : i === 1 ? '/mecha-ace.jpg' : i === 2 ? '/ghost-pilot.jpg' : '/stealth-drone.jpg'} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }} /></div>
+                  <div className="w-8 h-8 rounded bg-[#1a1a24] border border-[#252535] overflow-hidden"><img src={tierAvatar} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }} /></div>
                   <div className="flex-1 min-w-0"><div className="flex items-center gap-1.5"><span className="text-xs font-bold truncate">{displayName}</span><span className={`text-[7px] px-1 py-0.5 border rounded ${tier.color}`}>{tier.label}</span></div><div className="text-[9px] text-[#5a5a6a] font-mono">{holder.fid ? `FID ${holder.fid}` : 'UNLINKED WALLET'}</div></div>
                   <div className="text-right"><div className="text-[#39ff14] font-black text-xs" style={{ fontFamily: 'Press Start 2P, monospace' }}>{formatNumber(holder.balance, 0)}</div><div className="text-[9px] text-[#5a5a6a] font-mono">$TACHI</div>{holder.balanceUsd && <div className="text-[8px] text-[#ff6b00] font-mono">${Number(holder.balanceUsd).toFixed(0)}</div>}</div>
                 </a>
