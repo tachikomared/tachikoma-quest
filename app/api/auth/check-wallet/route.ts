@@ -11,7 +11,7 @@ export async function GET(req: Request) {
     }
 
     const existingWallet = await sql`
-      SELECT u.id, u.fc_fid, u.fc_username, u.referral_code, u.pfp_url, w.address
+      SELECT u.id, u.fc_fid, u.fc_username, u.referral_code, w.address
       FROM wallets w
       JOIN users u ON u.id = w.user_id
       WHERE LOWER(w.address) = ${address}
@@ -20,7 +20,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       hasSession: existingWallet.length > 0,
-      pfpUrl: existingWallet[0]?.pfp_url || null,
+      pfpUrl: null,
     });
   } catch (e: any) {
     console.error('[auth/check-wallet] Error:', e);

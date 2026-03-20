@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
     // Check if wallet already belongs to an existing guest account
     const existingWallet = await sql`
-      SELECT u.id, u.fc_fid, u.fc_username, u.referral_code, u.pfp_url, w.address
+      SELECT u.id, u.fc_fid, u.fc_username, u.referral_code, w.address
       FROM wallets w
       JOIN users u ON u.id = w.user_id
       WHERE LOWER(w.address) = ${normalizedAddress}
@@ -93,9 +93,6 @@ export async function POST(req: Request) {
 
     if (!pfpUrl) {
       pfpUrl = `https://api.dicebear.com/9.x/thumbs/svg?seed=${normalizedAddress}`;
-      await sql`
-        UPDATE users SET pfp_url = ${pfpUrl} WHERE id = ${userId}
-      `;
     }
 
     // Create session
