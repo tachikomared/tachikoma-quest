@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
     // Check if wallet already belongs to an existing guest account
     const existingWallet = await sql`
-      SELECT u.id, u.fc_fid, u.fc_username, w.address
+      SELECT u.id, u.fc_fid, u.fc_username, u.referral_code, w.address
       FROM wallets w
       JOIN users u ON u.id = w.user_id
       WHERE LOWER(w.address) = ${normalizedAddress}

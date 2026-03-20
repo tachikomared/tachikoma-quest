@@ -51,18 +51,21 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean; onGuestLogin: () => void }) {
   const { connect, connectors, isPending: isConnecting } = useConnect();
   const { disconnect } = useDisconnect();
-  const { isConnected, address } = useAccount();
+  const { isConnected, address, isDisconnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const [isGuestLoggingIn, setIsGuestLoggingIn] = useState(false);
   const [refCode, setRefCode] = useState('');
   const [urlRef, setUrlRef] = useState<string | null>(null);
   const [savedGuestWallet, setSavedGuestWallet] = useState(false);
+  const [walletSeenBefore, setWalletSeenBefore] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       setUrlRef(params.get('ref'));
-      setSavedGuestWallet(window.localStorage.getItem(`tachi_guest_${address?.toLowerCase() || ''}`) === '1');
+      const walletKey = address?.toLowerCase() || '';
+      setWalletSeenBefore(Boolean(walletKey && window.localStorage.getItem(`tachi_guest_${walletKey}`) === '1'));
+      setSavedGuestWallet(Boolean(walletKey && window.localStorage.getItem(`tachi_guest_${walletKey}`) === '1'));
     }
   }, [address]);
 
@@ -97,6 +100,10 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
           return;
         }
         const err = await res.text();
+        if (res.status === 403 && err.includes('No saved guest session found')) {
+          window.localStorage.removeItem(`tachi_guest_${address.toLowerCase()}`);
+          setSavedGuestWallet(false);
+        }
         alert('Guest login failed: ' + err);
       } catch (e: any) {
         alert('Guest login failed: ' + (e.message || 'Unknown error'));
