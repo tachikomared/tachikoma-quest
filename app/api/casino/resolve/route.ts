@@ -19,18 +19,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const [game] = await sql`
-      SELECT id, bet_amount, status, commitment, server_secret, created_at
+    const rows = await sql`
+      SELECT id, status, commitment, server_secret, bet_amount, created_at
       FROM casino_games
       WHERE id = ${gameId} AND user_id = ${user.id}
+      LIMIT 1
     `;
 
-    if (!game) {
+    if (!rows.length) {
       return NextResponse.json(
         { error: 'Game not found' },
         { status: 404 }
       );
     }
+
+    const game = rows[0];
 
     if (game.status !== 'revealed') {
       return NextResponse.json(
@@ -52,8 +55,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate random seed
+    const createdAtEpoch = Math.floor(new Date(game.created_at).getTime() / 1000);
     const seed = createHash('sha256')
-      .update(playerSecret + game.server_secret + Math.floor(new Date(game.created_at).getTime() / 1000).toString())
+      .update(playerSecret + game.server_secret + createdAtEpoch.toString())
       .digest('hex');
 
     // Determine win/lose (50% chance)
@@ -61,20 +65,19 @@ export async function POST(request: NextRequest) {
     const isWin = Number(seedNumber % 2n) === 0;
 
     // Calculate outcomes
+    const betAmount = Number(game.bet_amount);
     let payout = 0;
     let burned = 0;
     let toCommunity = 0;
     let xpEarned = 0;
 
     if (isWin) {
-      // Win: 2× payout
-      payout = game.bet_amount * 2;
+      payout = betAmount * 2;
       xpEarned = 50;
     } else {
-      // Lose: 90% burned, 10% to community
-      burned = Math.floor((game.bet_amount * 90) / 100);
-      toCommunity = Math.floor((game.bet_amount * 10) / 100);
-      xpEarned = 10; // Consolation XP
+      burned = Math.floor((betAmount * 90) / 100);
+      toCommunity = Math.floor((betAmount * 10) / 100);
+      xpEarned = 10;
     }
 
     // Update game
@@ -85,39 +88,42 @@ export async function POST(request: NextRequest) {
           payout = ${payout},
           burned = ${burned},
           to_community = ${toCommunity},
-          resolved_at = NOW(),
-          seed = ${seed}
+          seed = ${seed},
+          resolved_at = NOW()
       WHERE id = ${gameId}
     `;
 
-    // Update user XP
-    if (xpEarned > 0) {
+    // Update user casino stats
+    if (isWin) {
       await sql`
         UPDATE users
-        SET xp = xp + ${xpEarned}
+        SET casino_games_played = COALESCE(casino_games_played, 0) + 1,
+            casino_games_won = COALESCE(casino_games_won, 0) + 1,
+            casino_total_won = COALESCE(casino_total_won, 0) + ${payout}
         WHERE id = ${user.id}
       `;
-
-      // Record XP transaction
+    } else {
       await sql`
-        INSERT INTO xp_transactions (user_id, amount, type, description, created_at)
-        VALUES (${user.id}, ${xpEarned}, 'casino', ${isWin ? 'Casino win' : 'Casino consolation'}, NOW())
+        UPDATE users
+        SET casino_games_played = COALESCE(casino_games_played, 0) + 1,
+            casino_total_burned = COALESCE(casino_total_burned, 0) + ${burned},
+            casino_total_contributed = COALESCE(casino_total_contributed, 0) + ${toCommunity}
+        WHERE id = ${user.id}
       `;
     }
 
-    // Update user casino stats
-    await sql`
-      UPDATE users
-      SET casino_games_played = casino_games_played + 1,
-          casino_games_won = casino_games_won + ${isWin ? 1 : 0},
-          casino_total_won = casino_total_won + ${payout},
-          casino_total_burned = casino_total_burned + ${burned},
-          casino_total_contributed = casino_total_contributed + ${toCommunity}
-      WHERE id = ${user.id}
-    `;
-
-    // TODO: Call contract resolveGame(playerSecret)
-    // TODO: In production, contract would handle token transfers
+    // Award XP via quest_claims
+    if (xpEarned > 0) {
+      await sql`
+        INSERT INTO quest_claims (user_id, quest_id, status, points_awarded)
+        VALUES (
+          ${user.id},
+          ${'casino-' + gameId.slice(0, 8)},
+          'verified',
+          ${xpEarned}
+        )
+      `;
+    }
 
     return NextResponse.json({
       success: true,
@@ -127,12 +133,15 @@ export async function POST(request: NextRequest) {
       toCommunity,
       xpEarned,
       seed,
-      message: isWin 
-        ? `🎉 You won ${payout} TACHI! +${xpEarned} XP` 
+      message: isWin
+        ? `🎉 You won ${payout} TACHI! +${xpEarned} XP`
         : `💀 You lost. ${burned} TACHI burned, ${toCommunity} to community pool. +${xpEarned} XP`,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Casino resolve error:', error);
+    if (error?.message === 'Unauthorized' || error?.message === 'Invalid session') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     return NextResponse.json(
       { error: 'Failed to resolve game' },
       { status: 500 }

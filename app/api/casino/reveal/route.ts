@@ -6,11 +6,9 @@ import crypto from 'crypto';
 /**
  * Reveal server secret for a game
  * POST /api/casino/reveal
- * (This would be called by a keeper service, but for MVP we'll do it manually)
  */
 export async function POST(request: NextRequest) {
   try {
-    // TODO: Add keeper authentication
     const user = await requireCurrentUser();
     const { gameId } = await request.json();
 
@@ -21,20 +19,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const [game] = await sql`
+    const rows = await sql`
       SELECT id, status
       FROM casino_games
       WHERE id = ${gameId} AND user_id = ${user.id}
+      LIMIT 1
     `;
 
-    if (!game) {
+    if (!rows.length) {
       return NextResponse.json(
         { error: 'Game not found' },
         { status: 404 }
       );
     }
 
-    if (game.status !== 'committed') {
+    if (rows[0].status !== 'committed') {
       return NextResponse.json(
         { error: 'Game already revealed or resolved' },
         { status: 400 }
@@ -44,7 +43,6 @@ export async function POST(request: NextRequest) {
     // Generate server secret
     const serverSecret = crypto.randomBytes(32).toString('hex');
 
-    // Update game with server secret
     await sql`
       UPDATE casino_games
       SET server_secret = ${serverSecret},
@@ -53,16 +51,17 @@ export async function POST(request: NextRequest) {
       WHERE id = ${gameId}
     `;
 
-    // TODO: Call contract revealGame(user.address, serverSecret)
-
     return NextResponse.json({
       success: true,
       gameId,
       serverSecret,
       message: 'Game revealed. Player can now resolve.',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Casino reveal error:', error);
+    if (error?.message === 'Unauthorized' || error?.message === 'Invalid session') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     return NextResponse.json(
       { error: 'Failed to reveal game' },
       { status: 500 }
