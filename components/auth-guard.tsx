@@ -57,14 +57,12 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
   const [refCode, setRefCode] = useState('');
   const [urlRef, setUrlRef] = useState<string | null>(null);
   const [savedGuestWallet, setSavedGuestWallet] = useState(false);
-  const [walletSeenBefore, setWalletSeenBefore] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       setUrlRef(params.get('ref'));
       const walletKey = address?.toLowerCase() || '';
-      setWalletSeenBefore(Boolean(walletKey && window.localStorage.getItem(`tachi_guest_${walletKey}`) === '1'));
       setSavedGuestWallet(Boolean(walletKey && window.localStorage.getItem(`tachi_guest_${walletKey}`) === '1'));
     }
   }, [address]);
@@ -209,7 +207,7 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
             ) : (
               <button
                 onClick={handleGuestLogin}
-                disabled={isGuestLoggingIn || !refCode.trim()}
+                disabled={isGuestLoggingIn || (!refCode.trim() && !savedGuestWallet)}
                 className="w-full bg-[#ff1a1a]/20 hover:bg-[#ff1a1a]/30 border border-[#ff1a1a] text-[#ff1a1a] font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <span>🎮</span>
