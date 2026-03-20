@@ -637,7 +637,9 @@ function WarRoomTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
               const text = `🦀 Check out the $TACHI Holders Leaderboard! Rank #${rank || '???'} ${tier.label} // Holding ${holder?.balance || '0'} $TACHI`;
               
               if (isMiniApp && typeof window !== 'undefined' && (window as any).sdk?.actions?.composeCast) {
-                await (window as any).sdk.actions.composeCast({ text, embeds: [shareUrl] });
+                const embedUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}?tab=warroom`;
+                const footer = `\n\n🎮 ${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}`;
+                await (window as any).sdk.actions.composeCast({ text: text + footer, embeds: [embedUrl] });
               } else {
                 // Try native app deep link first, fallback to web
                 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -758,11 +760,12 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   };
 
   const handleShare = async () => {
-    const text = `🦀 TACHI-QUEST // JOIN THE CRAB ARMY // Use my access key: ${referralCode} // Complete missions. Earn XP. Stack $TACHI.`;
+    const shareUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app';
+    const text = `🦀 TACHI-QUEST // JOIN THE CRAB ARMY // Use my access key: ${referralCode} // Complete missions. Earn XP. Stack $TACHI.\n\n🎮 ${shareUrl}`;
     if (isMiniApp) {
-      await sdk.actions.composeCast({ text });
+      await sdk.actions.composeCast({ text, embeds: [shareUrl] });
     } else if (navigator.share) {
-      navigator.share({ title: 'TACHI QUEST', text, url: referralLink });
+      navigator.share({ title: 'TACHI QUEST', text, url: shareUrl });
     }
   };
 
