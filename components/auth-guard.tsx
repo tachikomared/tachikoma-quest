@@ -56,14 +56,34 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
   const [isGuestLoggingIn, setIsGuestLoggingIn] = useState(false);
   const [refCode, setRefCode] = useState('');
   const [urlRef, setUrlRef] = useState<string | null>(null);
-  const [savedGuestWallet, setSavedGuestWallet] = useState(false);
+  const [hasWalletSession, setHasWalletSession] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       setUrlRef(params.get('ref'));
-      const walletKey = address?.toLowerCase() || '';
-      setSavedGuestWallet(Boolean(walletKey && window.localStorage.getItem(`tachi_guest_${walletKey}`) === '1'));
+    }
+  }, []);
+
+  useEffect(() => {
+    if (address) {
+      const walletKey = address.toLowerCase();
+      const localStorageHasSession = window.localStorage.getItem(`tachi_guest_${walletKey}`) === '1';
+      if (localStorageHasSession) {
+        setHasWalletSession(true);
+      } else {
+        fetch(`/api/auth/check-wallet?address=${encodeURIComponent(walletKey)}`, {
+          credentials: 'include'
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.hasSession) {
+              window.localStorage.setItem(`tachi_guest_${walletKey}`, '1');
+              setHasWalletSession(true);
+            }
+          })
+          .catch(() => {});
+      }
     }
   }, [address]);
 
@@ -83,7 +103,7 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
       return;
     }
 
-    if (savedGuestWallet) {
+    if (hasWalletSession) {
       setIsGuestLoggingIn(true);
       try {
         const message = `TACHI Quest Guest Login\n\nWallet: ${address}\nTimestamp: ${Date.now()}`;
@@ -100,7 +120,7 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
         const err = await res.text();
         if (res.status === 403 && err.includes('No saved guest session found')) {
           window.localStorage.removeItem(`tachi_guest_${address.toLowerCase()}`);
-          setSavedGuestWallet(false);
+          setHasWalletSession(false);
         }
         alert('Guest login failed: ' + err);
       } catch (e: any) {
@@ -207,7 +227,7 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
             ) : (
               <button
                 onClick={handleGuestLogin}
-                disabled={isGuestLoggingIn || (!refCode.trim() && !savedGuestWallet)}
+                disabled={isGuestLoggingIn}
                 className="w-full bg-[#ff1a1a]/20 hover:bg-[#ff1a1a]/30 border border-[#ff1a1a] text-[#ff1a1a] font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <span>🎮</span>
