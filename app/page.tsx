@@ -401,9 +401,6 @@ function MissionsTab({
       )}
 
       {/* Mission Briefings */}
-      <div className="text-xs text-[#ff6b00] font-mono border border-[#ff6b00]/30 bg-[#ff6b00]/10 rounded p-2">
-        ⚠️ Web3 reality check: if you skip the invite rules, the bots and freeloaders will absolutely cosplay as your community.
-      </div>
       <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest">
         <span className="text-lg">⚔️</span>
         <span>ACTIVE MISSIONS</span>
@@ -785,8 +782,8 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
 
   return (
     <div className="space-y-4">
-      <div className="text-xs text-[#ff6b00] font-mono border border-[#ff6b00]/30 bg-[#ff6b00]/10 rounded p-2">
-        ⚠️ Web3 reality check: if you skip the invite rules, the bots and freeloaders will absolutely cosplay as your community.
+      <div className="text-[10px] uppercase tracking-[0.2em] text-[#39ff14] font-mono border border-[#39ff14]/30 bg-[#39ff14]/10 rounded p-2 leading-snug">
+        IS A DECENTRALIZED ON-CHAIN MINING GAME. IT IS NOT A FINANCIAL PRODUCT, SECURITY OR INVESTMENT. WE DO NOT PROMISE NUMBERS GO UP, OR NUMBERS DO ANYTHING AT ALL. USE AT YOUR OWN RISK. ALL TACHI CONTENT, INCLUDING SOCIAL POSTS, IS FOR FUN. THIS IS NOT FINANCIAL ADVICE. DYOR. STAY DEGEN. STAY SAFU. GET $TACHI RESPONSIBLY.
       </div>
       <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest">
         <span className="text-lg">🔗</span>
@@ -824,6 +821,7 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
       {/* Access Link */}
       <div className="mission-card border-[#00f0ff]">
         <div className="text-[#00f0ff] text-xs font-mono mb-2 tracking-wider">/// REFERRAL LINK ///</div>
+        <div className="text-[10px] text-[#8a8a9a] font-mono mb-2">Remaining invites: {remainingInvites}/5</div>
         <div className="text-[10px] text-[#8a8a9a] font-mono mb-2">Remaining invites: {remainingInvites}/5</div>
         <div className="bg-[#050508] border border-[#1a1a24] rounded p-3 mb-3 overflow-hidden">
           <div className="text-[#ff1a1a] font-mono text-sm truncate">
