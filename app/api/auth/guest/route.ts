@@ -64,12 +64,17 @@ export async function POST(req: Request) {
       // If it's a Farcaster user (fid > 0), we should have used Farcaster auth
       // But we'll allow it for now
     } else {
-      // Validate ref code if provided
-      let referredByCode: string | null = null;
-      if (refCode) {
-        const referrer = await sql`SELECT referral_code FROM users WHERE referral_code = ${refCode.toUpperCase()} LIMIT 1`;
-        if (referrer.length) referredByCode = referrer[0].referral_code;
+      // Require ref code for all guest logins
+      if (!refCode) {
+        return NextResponse.json({ error: 'Referral code required for wallet guest access' }, { status: 403 });
       }
+
+      const referrer = await sql`SELECT referral_code FROM users WHERE referral_code = ${refCode.toUpperCase()} LIMIT 1`;
+      if (!referrer.length) {
+        return NextResponse.json({ error: 'Invalid referral code' }, { status: 403 });
+      }
+
+      const referredByCode = referrer[0].referral_code;
 
       // Create new guest user
       const referralCode = 'GUEST-' + Math.random().toString(36).substring(2, 10).toUpperCase();
