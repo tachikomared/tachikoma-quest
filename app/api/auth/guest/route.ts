@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     // Normalize address
     const normalizedAddress = address.toLowerCase();
 
-    // Check if guest user exists (fc_fid = 0 for guests, identified by wallet)
+    // Check if wallet already belongs to an existing guest account
     const existingWallet = await sql`
       SELECT u.id, u.fc_fid, u.fc_username, w.address
       FROM wallets w
@@ -57,14 +57,10 @@ export async function POST(req: Request) {
     let fid = 0;
 
     if (existingWallet.length) {
-      // Existing wallet found - use that user
       userId = existingWallet[0].id;
       fid = existingWallet[0].fc_fid || 0;
-      
-      // If it's a Farcaster user (fid > 0), we should have used Farcaster auth
-      // But we'll allow it for now
     } else {
-      // Require ref code for all guest logins
+      // Guest wallet access always requires a valid code unless it is a trusted Farcaster account.
       if (!refCode) {
         return NextResponse.json({ error: 'Referral code required for wallet guest access' }, { status: 403 });
       }
@@ -75,22 +71,15 @@ export async function POST(req: Request) {
       }
 
       const referredByCode = referrer[0].referral_code;
-
-      // Create new guest user
       const referralCode = 'GUEST-' + Math.random().toString(36).substring(2, 10).toUpperCase();
-      
       const newUser = await sql`
         INSERT INTO users (fc_fid, fc_username, referral_code, referred_by_code, created_at)
         VALUES (NULL, ${'guest_' + normalizedAddress.slice(2, 8)}, ${referralCode}, ${referredByCode}, NOW())
         RETURNING id
       `;
-      
-      // Set fid to 0 for session (guest mode)
+
       fid = 0;
-      
       userId = newUser[0].id;
-      
-      // Link wallet
       await sql`
         INSERT INTO wallets (user_id, address, verified, created_at)
         VALUES (${userId}, ${normalizedAddress}, true, NOW())
