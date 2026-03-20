@@ -141,19 +141,17 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
             </div>
 
             {/* Referral Code Input */}
-            {(urlRef || !isConnected) && (
-              <div className="bg-[#1a1a24] border border-[#252535] rounded-lg p-3">
-                <label className="text-[10px] text-[#8a8a9a] font-mono block mb-1">HAVE A REFERRAL CODE?</label>
-                <input
-                  type="text"
-                  value={refCode}
-                  onChange={(e) => setRefCode(e.target.value.toUpperCase())}
-                  placeholder={urlRef || 'ENTER CODE'}
-                  defaultValue={urlRef || ''}
-                  className="w-full bg-[#050508] border border-[#353545] rounded p-2 text-sm font-mono text-[#f0f0f0] focus:border-[#ff1a1a] focus:outline-none"
-                />
-              </div>
-            )}
+            <div className="bg-[#1a1a24] border border-[#252535] rounded-lg p-3">
+              <label className="text-[10px] text-[#8a8a9a] font-mono block mb-1">HAVE A REFERRAL CODE?</label>
+              <input
+                type="text"
+                value={refCode}
+                onChange={(e) => setRefCode(e.target.value.toUpperCase())}
+                placeholder={urlRef || 'ENTER CODE'}
+                defaultValue={urlRef || ''}
+                className="w-full bg-[#050508] border border-[#353545] rounded p-2 text-sm font-mono text-[#f0f0f0] focus:border-[#ff1a1a] focus:outline-none"
+              />
+            </div>
 
             {!isConnected ? (
               <button
@@ -167,7 +165,7 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
             ) : (
               <button
                 onClick={handleGuestLogin}
-                disabled={isGuestLoggingIn}
+                disabled={isGuestLoggingIn || !refCode.trim()}
                 className="w-full bg-[#ff1a1a]/20 hover:bg-[#ff1a1a]/30 border border-[#ff1a1a] text-[#ff1a1a] font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <span>🎮</span>
@@ -176,9 +174,17 @@ function UnauthenticatedScreen({ isMiniApp, onGuestLogin }: { isMiniApp: boolean
             )}
 
             {isConnected && (
-              <p className="text-xs text-green-400 text-center">
-                ✓ Wallet connected: {address?.slice(0, 6)}...{address?.slice(-4)}
-              </p>
+              <div className="space-y-2 text-center">
+                <p className="text-xs text-green-400">
+                  ✓ Wallet connected: {address?.slice(0, 6)}...{address?.slice(-4)}
+                </p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="text-[10px] uppercase tracking-wider px-2 py-1 rounded border border-[#ff1a1a]/30 text-[#ff1a1a] bg-[#ff1a1a]/10 hover:bg-[#ff1a1a]/20"
+                >
+                  Disconnect Wallet
+                </button>
+              </div>
             )}
 
             <div className="text-center text-xs text-[#8a8a9a]">
