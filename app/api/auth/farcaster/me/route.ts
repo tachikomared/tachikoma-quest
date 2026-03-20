@@ -3,16 +3,16 @@ import { cookies } from 'next/headers';
 import { createClient } from '@farcaster/quick-auth';
 import { sql } from '@/lib/db';
 import { fetchUserWithScore, type NeynarUser } from '@/lib/neynar';
+import { fetchUserByFid } from '@/lib/neynar';
 import { signSession, getFullUser, setSession } from '@/lib/auth';
 
 const quickAuth = createClient();
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const MAX_INVITES = 5;
 
 function getRequestHost(req: Request): string {
-  // Use the actual request host from headers for Mini App verification
   const host = req.headers.get('host') || req.headers.get('x-forwarded-host');
   if (host) return host;
-  // Fallback to APP_URL
   try {
     return new URL(APP_URL).host;
   } catch {
@@ -20,7 +20,42 @@ function getRequestHost(req: Request): string {
   }
 }
 
+async function enforceAccessGate(fid: number, neynarUser: NeynarUser | null): Promise<{ allowed: boolean; reason?: string }> {
+  const minScore = Number(process.env.NEYNAR_MIN_SCORE || '0.8');
+
+  // Check if user has power badge (blue check)
+  if (neynarUser?.power_badge) {
+    return { allowed: true };
+  }
+
+  // Check if user meets Neynar trust threshold
+  const score = neynarUser?.experimental?.neynar_user_score;
+  if (typeof score === 'number' && score >= minScore) {
+    return { allowed: true };
+  }
+
+  // Check if user is the invited guest
+  const invited = await sql`SELECT 1 FROM users WHERE fc_fid = ${fid} LIMIT 1`;
+  if (invited.length) {
+    return { allowed: true };
+  }
+
+  return { allowed: false, reason: 'invite_or_trust_required' };
+}
+
+async function canInviteMore(userId: string): Promise<boolean> {
+  const result = await sql`
+    SELECT COUNT(*)::int AS count FROM referrals WHERE referrer_user_id = ${userId}
+  `;
+  return result[0].count < MAX_INVITES;
+}
+
 async function ensureUser(fid: number, neynarUser: NeynarUser | null): Promise<string> {
+  const gate = await enforceAccessGate(fid, neynarUser);
+  if (!gate.allowed) {
+    throw new Error(gate.reason);
+  }
+
   // Check if user exists
   const existing = await sql`
     SELECT id FROM users WHERE fc_fid = ${fid} LIMIT 1
@@ -28,9 +63,7 @@ async function ensureUser(fid: number, neynarUser: NeynarUser | null): Promise<s
 
   if (existing.length) {
     const userId = existing[0].id;
-    
-    // Try to update profile if we have Neynar data
-    // This may fail if columns don't exist, so we wrap in try-catch
+
     if (neynarUser) {
       try {
         await sql`
@@ -48,8 +81,7 @@ async function ensureUser(fid: number, neynarUser: NeynarUser | null): Promise<s
           WHERE id = ${userId}
         `;
       } catch (e) {
-        console.warn('[auth] Failed to update extended profile:', e);
-        // Try basic update without extended columns
+        console.warn('[auth] Failed to update profile:', e);
         try {
           await sql`
             UPDATE users
@@ -57,11 +89,11 @@ async function ensureUser(fid: number, neynarUser: NeynarUser | null): Promise<s
             WHERE id = ${userId}
           `;
         } catch {
-          // Ignore - user exists, that's what matters
+          // Ignore
         }
       }
     }
-    
+
     return userId;
   }
 
@@ -69,7 +101,6 @@ async function ensureUser(fid: number, neynarUser: NeynarUser | null): Promise<s
   const username = neynarUser?.username || `fid-${fid}`;
   const referralCode = username.toUpperCase().replace(/[^A-Z0-9]/g, '') + '-' + fid;
 
-  // Try full insert first
   try {
     const result = await sql`
       INSERT INTO users (
@@ -91,9 +122,7 @@ async function ensureUser(fid: number, neynarUser: NeynarUser | null): Promise<s
     `;
     return result[0].id;
   } catch (e) {
-    console.warn('[auth] Full insert failed, trying minimal insert:', e);
-    
-    // Fallback to minimal insert
+    console.warn('[auth] Full insert failed, trying minimal:', e);
     const result = await sql`
       INSERT INTO users (fc_fid, fc_username, referral_code)
       VALUES (${fid}, ${username}, ${referralCode})
@@ -119,9 +148,8 @@ async function handleQuickAuth(token: string, req: Request) {
     );
   }
 
-  // FID is in payload.sub
   const fid = typeof payload.sub === 'number' ? payload.sub : Number(payload.sub);
-  
+
   if (!fid || Number.isNaN(fid)) {
     return NextResponse.json(
       { user: null, error: 'missing_fid' },
@@ -131,7 +159,6 @@ async function handleQuickAuth(token: string, req: Request) {
 
   console.log('[auth] Authenticating FID:', fid);
 
-  // Fetch Neynar data (optional)
   let neynarUser: NeynarUser | null = null;
   try {
     neynarUser = await fetchUserWithScore(fid);
@@ -139,16 +166,21 @@ async function handleQuickAuth(token: string, req: Request) {
     console.warn('[auth] Neynar fetch failed:', e);
   }
 
-  // Create/update user
   try {
     const userId = await ensureUser(fid, neynarUser);
     await setSession(fid, neynarUser?.username || null, userId);
-    
+
     const user = await getFullUser(fid);
     console.log('[auth] Success:', user?.fcFid);
     return NextResponse.json({ user });
   } catch (e: any) {
     console.error('[auth] Database error:', e);
+    if (e.message === 'invite_or_trust_required') {
+      return NextResponse.json(
+        { user: null, error: 'access_restricted', details: 'You need an invite code, Neynar score >= 0.8, or a verified blue check badge' },
+        { status: 403 }
+      );
+    }
     return NextResponse.json(
       { user: null, error: 'database_error', details: e.message },
       { status: 500 }
@@ -164,7 +196,6 @@ export async function GET(req: Request) {
     return handleQuickAuth(token, req);
   }
 
-  // Check session cookie
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get('session');
 
@@ -179,7 +210,7 @@ export async function GET(req: Request) {
     );
     const { payload } = await jwtVerify(sessionToken.value, JWT_SECRET);
     const session = payload as { fid: number };
-    
+
     const user = await getFullUser(session.fid);
     return NextResponse.json({ user });
   } catch {
