@@ -46,7 +46,7 @@ export async function POST(req: Request) {
 
     // Check if wallet already belongs to an existing guest account
     const existingWallet = await sql`
-      SELECT u.id, u.fc_fid, u.fc_username, u.referral_code, w.address
+      SELECT u.id, u.fc_fid, u.fc_username, u.referral_code, u.pfp_url, w.address
       FROM wallets w
       JOIN users u ON u.id = w.user_id
       WHERE LOWER(w.address) = ${normalizedAddress}
@@ -55,12 +55,14 @@ export async function POST(req: Request) {
 
     let userId: string;
     let fid = 0;
+    let pfpUrl: string | null = null;
 
     const canUseSavedGuest = refCode === '__SAVED_GUEST__';
 
     if (existingWallet.length) {
       userId = existingWallet[0].id;
       fid = existingWallet[0].fc_fid || 0;
+      pfpUrl = existingWallet[0].pfp_url || null;
     } else if (canUseSavedGuest) {
       return NextResponse.json({ error: 'No saved guest session found for this wallet' }, { status: 403 });
     } else {
@@ -89,6 +91,13 @@ export async function POST(req: Request) {
       `;
     }
 
+    if (!pfpUrl) {
+      pfpUrl = `https://api.dicebear.com/9.x/thumbs/svg?seed=${normalizedAddress}`;
+      await sql`
+        UPDATE users SET pfp_url = ${pfpUrl} WHERE id = ${userId}
+      `;
+    }
+
     // Create session
     const sessionToken = await signSession({ 
       fid, 
@@ -106,7 +115,7 @@ export async function POST(req: Request) {
       path: '/',
     });
 
-    return NextResponse.json({ success: true, isGuest: fid === 0 });
+    return NextResponse.json({ success: true, isGuest: fid === 0, pfpUrl });
   } catch (e: any) {
     console.error('[auth/guest] Error:', e);
     return NextResponse.json({ error: e.message || 'Guest auth failed' }, { status: 500 });
