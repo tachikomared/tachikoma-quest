@@ -550,7 +550,7 @@ function PilotTab({ user }: { user: any }) {
       <div className="mission-card text-center">
         <div className="relative inline-block mb-4">
           <img src={user.fcPfpUrl || '/default-avatar.png'} alt="" className="w-24 h-24 rounded-full border-4 border-[#ff1a1a] mx-auto object-cover bg-[#1a1a24]" onError={(e) => { (e.target as HTMLImageElement).src = '/guest-avatar.jpg'; }} />
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#ff1a1a] text-[#050508] px-3 py-1 rounded-full text-xs font-black">PILOT</div>
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#ff1a1a] text-[#050508] px-3 py-1 rounded-full text-xs font-black">PILOT PROFILE</div>
         </div>
         <h2 className="text-xl font-black mb-1">{user.fcFid === 0 ? '👤 Guest Pilot' : `@${user.fcUsername}`}</h2>
         <p className="text-[#8a8a9a] text-xs font-mono mb-4">{user.fcFid === 0 ? 'WALLET MODE' : `FID #${user.fcFid}`}</p>
