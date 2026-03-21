@@ -29,7 +29,6 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 ];
 
 const DISCLAMIER_TEXT = 'Mini App access is trust-gated. Blue check or Neynar score 0.8+ is required unless you have an invite code.';
-const INVITE_CODE = '4EB8ED3B';
 
 export default function HomePage() {
   const { auth, isMiniApp } = useAuth();
@@ -116,7 +115,7 @@ export default function HomePage() {
             <input
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value)}
-              placeholder={INVITE_CODE}
+              placeholder="Enter invite code"
               className="w-full bg-[#050508] border border-[#1a1a24] rounded p-2 text-xs font-mono text-[#f0f0f0] focus:border-[#ff1a1a] focus:outline-none"
             />
             <button onClick={submitInviteCode} className="mecha-button w-full text-xs">USE INVITE</button>

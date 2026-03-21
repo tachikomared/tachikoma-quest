@@ -1,31 +1,30 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-
-const VALID_INVITE_CODES = new Set(
-  [
-    '4EB8ED3B',
-    ...(process.env.INVITE_CODES || '')
-      .split(',')
-      .map((c) => c.trim().toUpperCase())
-      .filter(Boolean),
-  ]
-);
+import { sql } from '@/lib/db';
 
 export async function POST(req: Request) {
   try {
     const { code } = await req.json().catch(() => ({}));
-    const invite = String(code || '').trim().toUpperCase();
+    const invite = String(code || '').trim();
 
     if (!invite) {
       return NextResponse.json({ ok: false, error: 'missing_code' }, { status: 400 });
     }
 
-    if (!VALID_INVITE_CODES.has(invite)) {
+    const normalized = invite.toUpperCase();
+    const referrer = await sql`
+      SELECT referral_code
+      FROM users
+      WHERE referral_code = ${normalized}
+      LIMIT 1
+    `;
+
+    if (!referrer.length) {
       return NextResponse.json({ ok: false, error: 'invalid_code' }, { status: 403 });
     }
 
     const cookieStore = await cookies();
-    cookieStore.set('invite_access', invite, {
+    cookieStore.set('invite_access', normalized, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
