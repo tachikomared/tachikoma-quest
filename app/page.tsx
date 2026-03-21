@@ -25,7 +25,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'casino', label: 'CASINO', icon: '🎰' },
   { id: 'warroom', label: 'WAR ROOM', icon: '📊' },
   { id: 'enlist', label: 'ENLIST', icon: '🔗' },
-  { id: 'pilot', label: 'PILOT', icon: '<img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" />' },
+  { id: 'pilot', label: 'PILOT', icon: 'crab-icon.png' },
 ];
 
 export default function HomePage() {
@@ -125,7 +125,9 @@ export default function HomePage() {
               }`}
               style={{ fontFamily: 'Share Tech Mono, monospace' }}
             >
-              <span className="block text-lg mb-1">{tab.icon}</span>
+              <span className="block text-lg mb-1">
+                {tab.id === 'pilot' ? <img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain mx-auto" /> : tab.icon}
+              </span>
               {tab.label}
             </button>
           ))}
