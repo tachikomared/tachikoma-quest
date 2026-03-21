@@ -150,10 +150,15 @@ export async function GET() {
       '0x0000000000000000000000000000000000000001',
     ]);
 
-    const filtered = items.filter((item: any) => {
-      const address = item.address?.hash?.toLowerCase();
-      return address && !excluded.has(address);
-    });
+    const filtered = items
+      .map((item: any) => ({
+        ...item,
+        addressHash: typeof item === 'string' ? item : (item.address?.hash || item.address)?.toLowerCase?.() || item.address?.hash || item.address,
+      }))
+      .filter((item: any) => {
+        const address = item.addressHash?.toLowerCase?.() || String(item.addressHash || '').toLowerCase();
+        return address && !excluded.has(address);
+      });
 
     // Fetch TACHI price
     const tachiPrice = await getTachiPrice();
@@ -161,7 +166,7 @@ export async function GET() {
     const normalized = filtered
       .map((item: any) => ({
         ...item,
-        addressHash: item.address?.hash as `0x${string}`,
+        addressHash: item.addressHash as `0x${string}`,
       }))
       .filter((item: any) => item.addressHash);
 
