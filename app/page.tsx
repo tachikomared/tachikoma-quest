@@ -183,12 +183,12 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
       .then(d => {
         const quests = Array.isArray(d.quests) ? d.quests : [];
         setMissions(quests.length ? quests : [
-          { id: 'fc-follow-smolekoma', title: 'Follow @smolekoma', description: 'Follow the creator on Farcaster', points: 150, icon: '👤', platform: 'farcaster', verification: 'fc_follow_user' },
-          { id: 'fc-recast-launch', title: 'Recast Launch Cast', description: 'Recast the official TACHI Quest launch announcement', points: 250, icon: '🔄', platform: 'farcaster', verification: 'fc_cast_viewer_context' },
-          { id: 'fc-like-launch', title: 'Like Launch Cast', description: 'Like the official TACHI Quest launch announcement', points: 100, icon: '❤️', platform: 'farcaster', verification: 'fc_cast_viewer_context' },
+          { id: 'fc-follow-smolekoma', title: 'Follow @smolekoma', description: 'Follow the creator on Farcaster', points: 150, icon: '👤', platform: 'farcaster', verification: 'fc_follow_user', action: 'follow_user', target: { targetFid: 2656205 } },
+          { id: 'fc-recast-launch', title: 'Recast Launch Cast', description: 'Recast the official TACHI Quest launch announcement', points: 250, icon: '🔄', platform: 'farcaster', verification: 'fc_cast_viewer_context', action: 'open_external', target: { castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a', castUrl: 'https://warpcast.com/smolekoma/0x400e79ed' } },
+          { id: 'fc-like-launch', title: 'Like Launch Cast', description: 'Like the official TACHI Quest launch announcement', points: 100, icon: '❤️', platform: 'farcaster', verification: 'fc_cast_viewer_context', action: 'like_cast', target: { castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a', castUrl: 'https://warpcast.com/smolekoma/0x400e79ed' } },
           { id: 'wallet-link', title: 'Link Base Wallet', description: 'Link a Base wallet for airdrop eligibility', points: 200, icon: '🔗', platform: 'wallet', verification: 'wallet_signature' },
-          { id: 'x-follow', title: 'Follow on X', description: 'Follow the TACHI account on X', points: 120, icon: '𝕏', platform: 'x', verification: 'manual_open' },
-          { id: 'x-like', title: 'Like the X Launch Post', description: 'Like the launch post on X', points: 80, icon: '𝕏', platform: 'x', verification: 'manual_open' },
+          { id: 'x-follow', title: 'Follow on X', description: 'Follow the TACHI account on X', points: 120, icon: '𝕏', platform: 'x', verification: 'manual_open', target: { url: 'https://x.com/smolekoma' } },
+          { id: 'x-like', title: 'Like the X Launch Post', description: 'Like the launch post on X', points: 80, icon: '𝕏', platform: 'x', verification: 'manual_open', target: { url: 'https://x.com/smolekoma/status/2029672279416721648' } },
           { id: 'hodl-tachi', title: 'HODL $TACHI', description: 'Hold 100+ $TACHI in your linked wallet', points: 1000, icon: '🪙', platform: 'wallet', verification: 'wallet_balance' },
         ]);
       });
