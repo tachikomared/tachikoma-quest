@@ -555,6 +555,19 @@ function PilotTab({ user }: { user: any }) {
         <h2 className="text-xl font-black mb-1">{user.fcFid === 0 ? '👤 Guest Pilot' : `@${user.fcUsername}`}</h2>
         <p className="text-[#8a8a9a] text-xs font-mono mb-4">{user.fcFid === 0 ? 'WALLET MODE' : `FID #${user.fcFid}`}</p>
       </div>
+      <div className="mission-card">
+        <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest mb-3">
+          <span className="text-lg">⚔️</span>
+          <span>MISSIONS</span>
+          <div className="flex-1 h-px bg-[#ff1a1a]/30" />
+        </div>
+        <div className="grid grid-cols-3 gap-3 text-center mb-3">
+          <div className="bg-[#050508] border border-[#1a1a24] rounded p-3"><div className="text-[#ff6b00] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>{user.points || 0}</div><div className="text-[#5a5a6a] text-xs font-mono">XP</div></div>
+          <div className="bg-[#050508] border border-[#1a1a24] rounded p-3"><div className="text-[#39ff14] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>{user.completions?.length || 0}</div><div className="text-[#5a5a6a] text-xs font-mono">DONE</div></div>
+          <div className="bg-[#050508] border border-[#1a1a24] rounded p-3"><div className="text-[#00f0ff] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>{streak}</div><div className="text-[#5a5a6a] text-xs font-mono">STREAK</div></div>
+        </div>
+        {user && <DailyQuestCard streak={streak} completedToday={completedToday} onComplete={() => document.querySelector('.mission-card')?.scrollIntoView({ behavior: 'smooth' })} />}
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="mission-card text-center"><div className="text-[#8a8a9a] text-xs font-mono mb-1">TOTAL XP</div><div className="text-[#ff6b00] font-black text-2xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>{user.points || 0}</div></div>
         <div className="mission-card text-center"><div className="text-[#8a8a9a] text-xs font-mono mb-1">MISSIONS</div><div className="text-[#00f0ff] font-black text-2xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>{user.completions?.length || 0}</div></div>
