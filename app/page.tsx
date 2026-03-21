@@ -91,10 +91,10 @@ export default function HomePage() {
                   <span className="w-2 h-2 rounded-full bg-[#39ff14] animate-pulse" />
                   SYSTEM ONLINE
                 </div>
-                <a href="https://farcaster.xyz/miniapps/nLEf2pIdso35/tachi-quest" target="_blank" rel="noreferrer" className="text-[10px] text-[#ff6b00] underline underline-offset-2">
-                  ENGAGE APP
-                </a>
               </div>
+              <a href="https://farcaster.xyz/miniapps/nLEf2pIdso35/tachi-quest" target="_blank" rel="noreferrer" className="ml-2 px-3 py-1 rounded bg-[#ff6b00]/20 border border-[#ff6b00] text-[#ff6b00] text-[10px] font-bold hover:bg-[#ff6b00]/30 transition-colors">
+                ENGAGE APP
+              </a>
             </div>
             {isAuthenticated && user && (
               <div className="flex items-center gap-2">
@@ -343,7 +343,12 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
                 ) : null
               )}
               {(mission.platform === 'farcaster' || mission.platform === 'x') && (
-                <button onClick={() => executeMission(mission)} disabled={completedIds.has(mission.id)} className="mecha-button flex-1 text-xs">{completedIds.has(mission.id) ? '✅ DONE' : mission.platform === 'x' ? '⚡ ENGAGE ON X' : '⚡ ENGAGE'}</button>
+                <a href={mission.target?.castUrl || (mission.platform === 'x' ? mission.target?.url : null)} target="_blank" rel="noreferrer" className="mecha-button flex-1 text-xs inline-block text-center hover:opacity-90 transition-opacity" onClick={(e) => {
+                  if (mission.platform === 'farcaster' && mission.target?.castUrl) {
+                    e.preventDefault();
+                    executeMission(mission);
+                  }
+                }}>{completedIds.has(mission.id) ? '✅ DONE' : mission.platform === 'x' ? '⚡ ENGAGE ON X' : '⚡ ENGAGE'}</a>
               )}
               {mission.platform === 'farcaster' && (
                 <button onClick={() => verifyMission(mission)} disabled={status === 'active' || completedIds.has(mission.id)} className="mecha-button flex-1 text-xs bg-[#ff1a1a]/20">{status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ DONE' : '✓ VERIFY'}</button>
