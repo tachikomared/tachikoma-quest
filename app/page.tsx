@@ -341,7 +341,7 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
                 ) : null
               )}
               {(mission.platform === 'farcaster' || mission.platform === 'x') && (
-                <button onClick={() => executeMission(mission)} disabled={completedIds.has(mission.id)} className="mecha-button flex-1 text-xs">{completedIds.has(mission.id) ? '✅ DONE' : mission.platform === 'x' ? '⚡ DEPLOY TO X' : '⚡ ENGAGE'}</button>
+                <button onClick={() => executeMission(mission)} disabled={completedIds.has(mission.id)} className="mecha-button flex-1 text-xs">{completedIds.has(mission.id) ? '✅ DONE' : mission.platform === 'x' ? '⚡ SHARE ON X' : '⚡ SHARE'}</button>
               )}
               {mission.platform === 'farcaster' && (
                 <button onClick={() => verifyMission(mission)} disabled={status === 'active' || completedIds.has(mission.id)} className="mecha-button flex-1 text-xs bg-[#ff1a1a]/20">{status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ DONE' : '✓ CONFIRM'}</button>
