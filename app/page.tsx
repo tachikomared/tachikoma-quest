@@ -207,9 +207,14 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
       if (mission.action === 'follow_user' && mission.target?.targetFid) {
         if (isMiniApp) await sdk.actions.viewProfile({ fid: mission.target.targetFid });
         else window.open(`https://warpcast.com/~/profiles/${mission.target.targetFid}`, '_blank');
+      } else if (mission.target?.castUrl) {
+        // Use castUrl for both miniapp and desktop - SDK requires full URL
+        if (isMiniApp) await sdk.actions.openUrl({ url: mission.target.castUrl });
+        else window.open(mission.target.castUrl, '_blank');
       } else if (mission.target?.castHash) {
+        // Fallback for hash-only targets
         if (isMiniApp) await sdk.actions.viewCast({ hash: mission.target.castHash });
-        else window.open(mission.target.castUrl || `https://warpcast.com/~/casts/${mission.target.castHash}`, '_blank');
+        else window.open(`https://warpcast.com/~/casts/${mission.target.castHash}`, '_blank');
       }
     }
   };
@@ -344,10 +349,8 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
               )}
               {(mission.platform === 'farcaster' || mission.platform === 'x') && (
                 <a href={mission.target?.castUrl || (mission.platform === 'x' ? mission.target?.url : null)} target="_blank" rel="noreferrer" className="mecha-button flex-1 text-xs inline-block text-center hover:opacity-90 transition-opacity" onClick={(e) => {
-                  if (mission.platform === 'farcaster' && mission.target?.castUrl) {
-                    e.preventDefault();
-                    executeMission(mission);
-                  }
+                  e.preventDefault();
+                  executeMission(mission);
                 }}>{completedIds.has(mission.id) ? '✅ DONE' : mission.platform === 'x' ? '⚡ ENGAGE ON X' : '⚡ ENGAGE'}</a>
               )}
               {mission.platform === 'farcaster' && (
