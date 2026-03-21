@@ -23,18 +23,18 @@ function getRequestHost(req: Request): string {
 async function enforceAccessGate(fid: number, neynarUser: NeynarUser | null): Promise<{ allowed: boolean; reason?: string }> {
   const minScore = Number(process.env.NEYNAR_MIN_SCORE || '0.8');
 
-  // Check if user has power badge (blue check)
+  // Allow if blue check exists
   if (neynarUser?.power_badge) {
     return { allowed: true };
   }
 
-  // Check if user meets Neynar trust threshold
+  // Allow if score meets threshold
   const score = neynarUser?.experimental?.neynar_user_score;
   if (typeof score === 'number' && score >= minScore) {
     return { allowed: true };
   }
 
-  // Check if user is the invited guest
+  // Otherwise block unless this is an existing invited user record
   const invited = await sql`SELECT 1 FROM users WHERE fc_fid = ${fid} LIMIT 1`;
   if (invited.length) {
     return { allowed: true };
@@ -177,7 +177,7 @@ async function handleQuickAuth(token: string, req: Request) {
     console.error('[auth] Database error:', e);
     if (e.message === 'invite_or_trust_required') {
       return NextResponse.json(
-        { user: null, error: 'access_restricted', details: 'You need an invite code, Neynar score >= 0.8, or a verified blue check badge' },
+        { user: null, error: 'access_restricted', details: 'You need a blue check or Neynar score >= 0.8' },
         { status: 403 }
       );
     }
