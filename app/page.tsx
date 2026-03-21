@@ -91,6 +91,9 @@ export default function HomePage() {
                   <span className="w-2 h-2 rounded-full bg-[#39ff14] animate-pulse" />
                   SYSTEM ONLINE
                 </div>
+                <a href="https://farcaster.xyz/miniapps/nLEf2pIdso35/tachi-quest" target="_blank" rel="noreferrer" className="text-[10px] text-[#ff6b00] underline underline-offset-2">
+                  ENGAGE APP
+                </a>
               </div>
             </div>
             {isAuthenticated && user && (
@@ -340,10 +343,10 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
                 ) : null
               )}
               {(mission.platform === 'farcaster' || mission.platform === 'x') && (
-                <button onClick={() => executeMission(mission)} disabled={completedIds.has(mission.id)} className="mecha-button flex-1 text-xs">{completedIds.has(mission.id) ? '✅ DONE' : mission.platform === 'x' ? '⚡ SHARE ON X' : '⚡ SHARE'}</button>
+                <button onClick={() => executeMission(mission)} disabled={completedIds.has(mission.id)} className="mecha-button flex-1 text-xs">{completedIds.has(mission.id) ? '✅ DONE' : mission.platform === 'x' ? '⚡ ENGAGE ON X' : '⚡ ENGAGE'}</button>
               )}
               {mission.platform === 'farcaster' && (
-                <button onClick={() => verifyMission(mission)} disabled={status === 'active' || completedIds.has(mission.id)} className="mecha-button flex-1 text-xs bg-[#ff1a1a]/20">{status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ DONE' : '✓ CONFIRM'}</button>
+                <button onClick={() => verifyMission(mission)} disabled={status === 'active' || completedIds.has(mission.id)} className="mecha-button flex-1 text-xs bg-[#ff1a1a]/20">{status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ DONE' : '✓ VERIFY'}</button>
               )}
             </div>
           </div>
