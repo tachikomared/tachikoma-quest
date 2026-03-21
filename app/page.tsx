@@ -179,10 +179,18 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
 
   // Hardcoded missions — single source of truth until DB is reliable
   const defaultMissions = [
-    { id: 'fc-follow-smolekoma', title: 'Follow @smolekoma', description: 'Follow the creator on Farcaster', points: 150, icon: '👤', platform: 'farcaster', verification: 'fc_follow_user', action: 'follow_user', target: { targetFid: 2656205 } },
+    { id: 'fc-follow-smolekoma', title: 'Follow @smolekoma', description: 'Follow @smolekoma on Farcaster', points: 150, icon: '👤', platform: 'farcaster', verification: 'fc_follow_user', action: 'follow_user', target: { targetFid: 2656205, profileUrl: 'https://farcaster.xyz/smolekoma' } },
     { id: 'fc-recast-launch', title: 'Recast Launch Cast', description: 'Recast the official TACHI Quest launch announcement', points: 250, icon: '🔄', platform: 'farcaster', verification: 'fc_cast_viewer_context', action: 'open_external', target: { castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a', castUrl: 'https://warpcast.com/smolekoma/0x400e79ed' } },
     { id: 'wallet-link', title: 'Link Base Wallet', description: 'Link a Base wallet for airdrop eligibility', points: 200, icon: '🔗', platform: 'wallet', verification: 'wallet_signature' },
-    { id: 'hodl-tachi', title: 'HODL $TACHI', description: 'Hold 100+ $TACHI in your linked wallet', points: 1000, icon: '🪙', platform: 'wallet', verification: 'wallet_balance' },
+    { id: 'hodl-100', title: 'HODL 100 $TACHI', description: 'Hold 100+ $TACHI in your linked wallet', points: 250, icon: '🪙', platform: 'wallet', verification: 'wallet_balance', target: { min: 100 } },
+    { id: 'hodl-1k', title: 'HODL 1,000 $TACHI', description: 'Hold 1,000+ $TACHI in your linked wallet', points: 750, icon: '🪙', platform: 'wallet', verification: 'wallet_balance', target: { min: 1000 } },
+    { id: 'hodl-10k', title: 'HODL 10,000 $TACHI', description: 'Hold 10,000+ $TACHI in your linked wallet', points: 1500, icon: '🪙', platform: 'wallet', verification: 'wallet_balance', target: { min: 10000 } },
+    { id: 'hodl-100k', title: 'HODL 100,000 $TACHI', description: 'Hold 100,000+ $TACHI in your linked wallet', points: 3000, icon: '🪙', platform: 'wallet', verification: 'wallet_balance', target: { min: 100000 } },
+    { id: 'hodl-1m', title: 'HODL 1,000,000 $TACHI', description: 'Hold 1,000,000+ $TACHI in your linked wallet', points: 10000, icon: '🪙', platform: 'wallet', verification: 'wallet_balance', target: { min: 1000000 } },
+    { id: 'hodl-10m', title: 'HODL 10,000,000 $TACHI', description: 'Hold 10,000,000+ $TACHI in your linked wallet', points: 25000, icon: '🪙', platform: 'wallet', verification: 'wallet_balance', target: { min: 10000000 } },
+    { id: 'hodl-100m', title: 'HODL 100,000,000 $TACHI', description: 'Hold 100,000,000+ $TACHI in your linked wallet', points: 50000, icon: '🪙', platform: 'wallet', verification: 'wallet_balance', target: { min: 100000000 } },
+    { id: 'hodl-1b', title: 'HODL 1,000,000,000 $TACHI', description: 'Hold 1,000,000,000+ $TACHI in your linked wallet', points: 100000, icon: '🪙', platform: 'wallet', verification: 'wallet_balance', target: { min: 1000000000 } },
+    { id: 'hodl-10b', title: 'HODL 10,000,000,000 $TACHI', description: 'Hold 10,000,000,000+ $TACHI in your linked wallet', points: 250000, icon: '🪙', platform: 'wallet', verification: 'wallet_balance', target: { min: 10000000000 } },
   ];
 
   useEffect(() => {
@@ -350,17 +358,28 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
               )}
 
               {(mission.platform === 'farcaster' || mission.platform === 'x') && (
-                <button onClick={() => executeMission(mission)} className="mecha-button flex-1 text-xs bg-[#00f0ff]/10 border-[#00f0ff]" disabled={completedIds.has(mission.id)}>
-                  {completedIds.has(mission.id) ? '✅ ACCOMPLISHED' : mission.platform === 'x' ? '↗ OPEN' : '⚡ OPEN'}
+                <>
+                  <button onClick={() => executeMission(mission)} className="mecha-button flex-1 text-xs bg-[#00f0ff]/10 border-[#00f0ff]" disabled={completedIds.has(mission.id)}>
+                    {completedIds.has(mission.id) ? '✅ OPENED' : mission.platform === 'x' ? '↗ OPEN' : '⚡ OPEN'}
+                  </button>
+                  <button onClick={() => verifyMission(mission)} disabled={status === 'active' || completedIds.has(mission.id)} className="mecha-button flex-1 text-xs bg-[#ff1a1a]/20">
+                    {status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ VERIFIED' : '✓ VERIFY'}
+                  </button>
+                </>
+              )}
+
+              {mission.platform === 'wallet' && mission.verification === 'wallet_balance' && (
+                <button onClick={() => verifyMission(mission)} disabled={status === 'active' || completedIds.has(mission.id)} className="mecha-button flex-1 text-xs bg-[#ff1a1a]/20">
+                  {status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ VERIFIED' : `✓ VERIFY ${mission.target?.min ? formatNumber(mission.target.min, 0) : ''}`}
                 </button>
               )}
 
-              {mission.platform === 'wallet' && (mission.verification === 'wallet_balance' || mission.verification === 'wallet_burn') && status !== 'completed' && (
-                <button onClick={() => verifyMission(mission)} disabled={status === 'active' || completedIds.has(mission.id)} className="mecha-button flex-1 text-xs bg-[#ff1a1a]/20">{status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ VERIFIED' : '✓ VERIFY'}</button>
+              {mission.platform === 'wallet' && mission.verification === 'wallet_burn' && (
+                <button onClick={() => verifyMission(mission)} disabled={status === 'active' || completedIds.has(mission.id)} className="mecha-button flex-1 text-xs bg-[#ff1a1a]/20">{status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ VERIFIED' : '✓ VERIFY BURN'}</button>
               )}
 
-              {mission.platform === 'farcaster' && mission.verification === 'fc_follow_user' && status !== 'completed' && (
-                <button onClick={() => verifyMission(mission)} disabled={status === 'active' || completedIds.has(mission.id)} className="mecha-button flex-1 text-xs bg-[#ff1a1a]/20">{status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ VERIFIED' : '✓ VERIFY'}</button>
+              {mission.platform === 'farcaster' && mission.verification === 'fc_follow_user' && (
+                <button onClick={() => verifyMission(mission)} disabled={status === 'active' || completedIds.has(mission.id)} className="mecha-button flex-1 text-xs bg-[#ff1a1a]/20">{status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ VERIFIED' : '✓ VERIFY FOLLOW'}</button>
               )}
             </div>
           </div>
