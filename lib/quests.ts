@@ -215,7 +215,8 @@ export const QUESTS: QuestDef[] = [
     repeatable: false,
     enabled: true,
     target: { 
-      castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a',
+      castHash: '0xb9230b95',
+      castUrl: 'https://farcaster.xyz/smolekoma/0xb9230b95',
       targetFid: 2656205,
       defaultQuoteText: 'TACHI Quest is live'
     },
@@ -233,7 +234,8 @@ export const QUESTS: QuestDef[] = [
     repeatable: false,
     enabled: true,
     target: { 
-      castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a',
+      castHash: '0xb9230b95',
+      castUrl: 'https://farcaster.xyz/smolekoma/0xb9230b95',
       targetFid: 2656205,
       requiredText: 'Just joined TACHI Quest'
     },
