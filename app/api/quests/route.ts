@@ -6,9 +6,8 @@ export const revalidate = 300;
 export async function GET() {
   try {
     const quests = await sql`
-      SELECT id, title, description, points, category, active
+      SELECT id, title, description, points, category
       FROM quests
-      WHERE active = true
       ORDER BY category ASC, points DESC, id ASC
     `;
 
