@@ -151,31 +151,34 @@ export async function GET() {
 
     // Resolve Base ENS names for top holders
     const holders = await Promise.all(
-      filtered.slice(0, 20).map(async (item: any, index: number) => {
-        const address = item.address?.hash;
-        const linkedUser = linkedMap.get(address?.toLowerCase());
-        const balanceTokens = Number(item.value || '0') / Math.pow(10, DECIMALS);
-        
-        // Try to get .base.eth name if no ENS from Blockscout
-        let baseEns = item.address?.ens_domain_name;
-        if (!baseEns && address) {
-          baseEns = await resolveBaseENS(address);
-        }
+      filtered
+        .filter((item: any) => Number(item.value || '0') > 0)
+        .slice(0, 20)
+        .map(async (item: any, index: number) => {
+          const address = item.address?.hash;
+          const linkedUser = linkedMap.get(address?.toLowerCase());
+          const balanceTokens = Number(item.value || '0') / Math.pow(10, DECIMALS);
+          
+          // Try to get .base.eth name if no ENS from Blockscout
+          let baseEns = item.address?.ens_domain_name;
+          if (!baseEns && address) {
+            baseEns = await resolveBaseENS(address);
+          }
 
-        return {
-          rank: index + 1,
-          address,
-          ens: baseEns || item.address?.ens_domain_name || null,
-          balance: balanceTokens.toFixed(2),
-          balanceUsd: tachiPrice > 0 ? (balanceTokens * tachiPrice).toFixed(2) : null,
-          rawBalance: item.value || '0',
-          fid: linkedUser?.fc_fid || null,
-          username: linkedUser?.fc_username || null,
-          displayName: linkedUser?.fc_display_name || null,
-          pfpUrl: linkedUser?.fc_pfp_url || null,
-          xp: linkedUser?.points || 0,
-        };
-      })
+          return {
+            rank: index + 1,
+            address,
+            ens: baseEns || item.address?.ens_domain_name || null,
+            balance: balanceTokens.toFixed(2),
+            balanceUsd: tachiPrice > 0 ? (balanceTokens * tachiPrice).toFixed(2) : null,
+            rawBalance: item.value || '0',
+            fid: linkedUser?.fc_fid || null,
+            username: linkedUser?.fc_username || null,
+            displayName: linkedUser?.fc_display_name || null,
+            pfpUrl: linkedUser?.fc_pfp_url || null,
+            xp: linkedUser?.points || 0,
+          };
+        })
     );
 
     return NextResponse.json(
