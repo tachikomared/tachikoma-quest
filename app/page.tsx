@@ -161,6 +161,20 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
   const { signMessageAsync } = useSignMessage();
   const { refreshAuth } = useAuth();
 
+  // Helper to format tier labels
+  const tieredHodlLabel = (min?: number) => {
+    if (!min) return '✓ VERIFY';
+    if (min >= 10000000000) return '✓ VERIFY 10B';
+    if (min >= 1000000000) return '✓ VERIFY 1B';
+    if (min >= 100000000) return '✓ VERIFY 100M';
+    if (min >= 10000000) return '✓ VERIFY 10M';
+    if (min >= 1000000) return '✓ VERIFY 1M';
+    if (min >= 100000) return '✓ VERIFY 100K';
+    if (min >= 10000) return '✓ VERIFY 10K';
+    if (min >= 1000) return '✓ VERIFY 1K';
+    return '✓ VERIFY 100';
+  };
+
   const refreshCompletions = async () => {
     try {
       const res = await fetch('/api/quests/status');
