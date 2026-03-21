@@ -51,8 +51,11 @@ async function canInviteMore(userId: string): Promise<boolean> {
 }
 
 async function ensureUser(fid: number, neynarUser: NeynarUser | null): Promise<string> {
+  const cookieStore = await cookies();
+  const inviteAccess = cookieStore.get('invite_access')?.value;
+
   const gate = await enforceAccessGate(fid, neynarUser);
-  if (!gate.allowed) {
+  if (!gate.allowed && !inviteAccess) {
     throw new Error(gate.reason);
   }
 

@@ -28,6 +28,8 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'pilot', label: 'PILOT', icon: 'crab-icon.png' },
 ];
 
+const DISCLAMIER_TEXT = 'Mini App access is trust-gated. Blue check or Neynar score 0.8+ is required unless you have an invite code.';
+
 export default function HomePage() {
   const { auth, isMiniApp } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('missions');
@@ -35,6 +37,9 @@ export default function HomePage() {
   const isGuest = user?.fcFid === 0;
   const isAuthenticated = auth.status === 'authenticated';
   const hasBlueCheckAccess = Boolean(user?.fcPowerBadge || (Number(user?.fcScore ?? 0) >= 0.8));
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState(false);
   const isRestricted = isAuthenticated && !hasBlueCheckAccess && !isGuest;
 
   const [streak, setStreak] = useState(0);
@@ -76,14 +81,46 @@ export default function HomePage() {
     if (tab && TABS.some((t) => t.id === tab)) setActiveTab(tab);
   }, []);
 
+  const submitInviteCode = async () => {
+    setInviteError(null);
+    setInviteSuccess(false);
+    try {
+      const res = await fetch('/api/invite/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ code: inviteCode.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setInviteError(data.error || 'Invalid invite code');
+        return;
+      }
+      setInviteSuccess(true);
+      window.location.reload();
+    } catch {
+      setInviteError('Invite validation failed');
+    }
+  };
+
   if (isRestricted) {
     return (
       <div className="min-h-screen bg-[#050508] text-[#f0f0f0] flex items-center justify-center px-4">
-        <div className="mission-card max-w-sm text-center border-[#ff6b00]">
-          <div className="text-4xl mb-3">⛔</div>
+        <div className="mission-card max-w-sm text-center border-[#ff6b00] space-y-3">
+          <div className="text-4xl mb-1">⛔</div>
           <div className="text-[#ff1a1a] font-black text-lg mb-2">NO ACCESS</div>
-          <div className="text-sm text-[#8a8a9a] font-mono">
-            Your Farcaster trust score is below 0.8 and you do not have a blue check.
+          <div className="text-sm text-[#8a8a9a] font-mono">{DISCLAMIER_TEXT}</div>
+          <div className="border-t border-[#1a1a24] pt-3 space-y-2 text-left">
+            <label className="block text-xs font-mono text-[#8a8a9a]">INVITE CODE</label>
+            <input
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              placeholder="Enter invite code"
+              className="w-full bg-[#050508] border border-[#1a1a24] rounded p-2 text-xs font-mono text-[#f0f0f0] focus:border-[#ff1a1a] focus:outline-none"
+            />
+            <button onClick={submitInviteCode} className="mecha-button w-full text-xs">USE INVITE</button>
+            {inviteError && <div className="text-xs text-[#ff1a1a] font-mono">{inviteError}</div>}
+            {inviteSuccess && <div className="text-xs text-[#39ff14] font-mono">Invite accepted</div>}
           </div>
         </div>
       </div>
