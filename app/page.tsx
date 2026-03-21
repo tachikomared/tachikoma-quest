@@ -19,13 +19,13 @@ const formatNumber = (value: number | string, maxFractionDigits = 0) => {
 type Tab = 'missions' | 'staking' | 'casino' | 'warroom' | 'enlist' | 'pilot';
 type MissionStatus = 'pending' | 'active' | 'completed' | 'failed';
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
+const TABS: { id: Tab; label: string; icon: string; note?: string }[] = [
   { id: 'missions', label: 'MISSIONS', icon: '⚔️' },
-  { id: 'staking', label: 'STAKING', icon: '🪙' },
-  { id: 'casino', label: 'CASINO', icon: '🎰' },
   { id: 'warroom', label: 'WAR ROOM', icon: '📊' },
   { id: 'enlist', label: 'ENLIST', icon: '🔗' },
   { id: 'pilot', label: 'PILOT', icon: 'crab-icon.png' },
+  { id: 'staking', label: 'STAKING', icon: '🪙', note: 'DEV' },
+  { id: 'casino', label: 'CASINO', icon: '🎰', note: 'DEV' },
 ];
 
 export default function HomePage() {
@@ -129,6 +129,7 @@ export default function HomePage() {
                 {tab.id === 'pilot' ? <img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain mx-auto" /> : tab.icon}
               </span>
               {tab.label}
+              {tab.note && <span className="block mt-1 text-[9px] text-[#8a8a9a]">{tab.note}</span>}
             </button>
           ))}
         </div>
@@ -316,7 +317,7 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
                   {status === 'active' && <span className="text-xs bg-[#00f0ff]/20 text-[#00f0ff] px-2 py-0.5 rounded font-mono animate-pulse">⏳ EXECUTING...</span>}
                 </div>
                 <p className="text-xs text-[#8a8a9a] mb-2">{mission.description}</p>
-                <div className="flex items-center gap-3 text-xs"><span className="text-[#ff6b00] font-bold">+{mission.points} XP</span><span className="text-[#5a5a6a]">•</span><span className="text-[#00f0ff]"><img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /> {mission.tachiReward || 0} $TACHI</span></div>
+                <div className="flex items-center gap-3 text-xs"><span className="text-[#ff6b00] font-bold">+{mission.points} XP</span><span className="text-[#5a5a6a]">•</span><span className="text-[#00f0ff]">XP ONLY</span></div>
               </div>
             </div>
             <div className="flex gap-2 mt-4">
@@ -567,7 +568,7 @@ function PilotTab({ user }: { user: any }) {
           <div className="bg-[#050508] border border-[#1a1a24] rounded p-3"><div className="text-[#ff6b00] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>{user.points || 0}</div><div className="text-[#5a5a6a] text-xs font-mono">XP</div></div>
           <div className="bg-[#050508] border border-[#1a1a24] rounded p-3"><div className="text-[#39ff14] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>{user.completions?.length || 0}</div><div className="text-[#5a5a6a] text-xs font-mono">DONE</div></div>
         </div>
-        <div className="text-[10px] text-[#8a8a9a] font-mono text-center">Complete daily quests to build your streak</div>
+        <div className="text-[10px] text-[#8a8a9a] font-mono text-center">XP-only missions. No $TACHI rewards here.</div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="mission-card text-center"><div className="text-[#8a8a9a] text-xs font-mono mb-1">TOTAL XP</div><div className="text-[#ff6b00] font-black text-2xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>{user.points || 0}</div></div>
