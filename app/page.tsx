@@ -353,13 +353,16 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
                 ) : null
               )}
               {(mission.platform === 'farcaster' || mission.platform === 'x') && (
-                <a href={mission.target?.castUrl || (mission.platform === 'x' ? mission.target?.url : null)} target="_blank" rel="noreferrer" className="mecha-button flex-1 text-xs inline-block text-center hover:opacity-90 transition-opacity" onClick={(e) => {
-                  e.preventDefault();
-                  executeMission(mission);
-                }}>{completedIds.has(mission.id) ? '✅ DONE' : mission.platform === 'x' ? '⚡ ENGAGE ON X' : '⚡ ENGAGE'}</a>
+                <div className="flex flex-1 gap-2">
+                  <a href={mission.target?.castUrl || (mission.platform === 'x' ? mission.target?.url : null)} target="_blank" rel="noreferrer" className="mecha-button flex-1 text-xs inline-block text-center hover:opacity-90 transition-opacity" onClick={(e) => {
+                    e.preventDefault();
+                    executeMission(mission);
+                  }}>{completedIds.has(mission.id) ? '✅ DIRECT' : '↗ OPEN'}</a>
+                  <button onClick={() => executeMission(mission)} className="mecha-button flex-1 text-xs bg-[#00f0ff]/10 border-[#00f0ff]">{completedIds.has(mission.id) ? '✅ DONE' : '⚡ OPEN SDK'}</button>
+                </div>
               )}
               {mission.platform === 'farcaster' && (
-                <button onClick={() => verifyMission(mission)} disabled={status === 'active' || completedIds.has(mission.id)} className="mecha-button flex-1 text-xs bg-[#ff1a1a]/20">{status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ DONE' : '✓ VERIFY'}</button>
+                <button onClick={() => verifyMission(mission)} disabled={status === 'active' || completedIds.has(mission.id)} className="mecha-button flex-1 text-xs bg-[#ff1a1a]/20">{status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ VERIFIED' : '✓ VERIFY'}</button>
               )}
             </div>
           </div>
