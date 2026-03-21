@@ -35,6 +35,7 @@ export default function HomePage() {
   const isGuest = user?.fcFid === 0;
   const isAuthenticated = auth.status === 'authenticated';
   const hasBlueCheckAccess = Boolean(user?.fcPowerBadge || (Number(user?.fcScore ?? 0) >= 0.8));
+  const isRestricted = isAuthenticated && !hasBlueCheckAccess && !isGuest;
 
   const [streak, setStreak] = useState(0);
   const [lastCheckIn, setLastCheckIn] = useState<string | undefined>();
@@ -74,6 +75,20 @@ export default function HomePage() {
     const tab = params.get('tab') as Tab | null;
     if (tab && TABS.some((t) => t.id === tab)) setActiveTab(tab);
   }, []);
+
+  if (isRestricted) {
+    return (
+      <div className="min-h-screen bg-[#050508] text-[#f0f0f0] flex items-center justify-center px-4">
+        <div className="mission-card max-w-sm text-center border-[#ff6b00]">
+          <div className="text-4xl mb-3">⛔</div>
+          <div className="text-[#ff1a1a] font-black text-lg mb-2">NO ACCESS</div>
+          <div className="text-sm text-[#8a8a9a] font-mono">
+            Your Farcaster trust score is below 0.8 and you do not have a blue check.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#050508] text-[#f0f0f0] crt-flicker">
