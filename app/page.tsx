@@ -34,6 +34,7 @@ export default function HomePage() {
   const user = auth.status === 'authenticated' ? auth.user : null;
   const isGuest = user?.fcFid === 0;
   const isAuthenticated = auth.status === 'authenticated';
+  const hasBlueCheckAccess = Boolean(user?.fcPowerBadge || (Number(user?.fcScore ?? 0) >= 0.8));
 
   const [streak, setStreak] = useState(0);
   const [lastCheckIn, setLastCheckIn] = useState<string | undefined>();
@@ -102,6 +103,11 @@ export default function HomePage() {
                     <span className="text-[10px] text-[#ff1a1a] font-bold">GUEST</span>
                   </div>
                 )}
+                <div className={`rounded px-2 py-1 border ${hasBlueCheckAccess ? 'bg-[#39ff14]/10 border-[#39ff14] text-[#39ff14]' : 'bg-[#ff6b00]/10 border-[#ff6b00] text-[#ff6b00]'}`}>
+                  <span className="text-[10px] font-bold">
+                    {user?.fcPowerBadge ? 'BLUE CHECK' : (Number(user?.fcScore ?? 0) >= 0.8 ? 'SCORE 0.8+' : 'NO ACCESS')}
+                  </span>
+                </div>
                 <div className="bg-[#1a1a24] border border-[#ff1a1a]/30 rounded px-3 py-1.5">
                   <div className="text-xs text-[#8a8a9a] font-mono">XP</div>
                   <div className="text-[#ff6b00] font-black text-lg" style={{ fontFamily: 'Press Start 2P, monospace' }}>

@@ -174,7 +174,7 @@ export async function getFullUser(fid: number, userId?: string): Promise<FullUse
       fcDisplayName: r.fc_display_name,
       fcPfpUrl: r.fc_pfp_url,
       fcBio: r.fc_bio,
-      fcScore: r.fc_score ? Number(r.fc_score) : null,
+      fcScore: r.fc_score !== null && r.fc_score !== undefined ? Number(r.fc_score) : null,
       fcFollowers: r.fc_followers || 0,
       fcFollowing: r.fc_following || 0,
       fcPowerBadge: r.fc_power_badge || false,
