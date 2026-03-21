@@ -7,6 +7,7 @@ const TACHI_CONTRACT = '0x39B4B879b8521d6A8C3a87cda64b969327b7fbA3';
 const BLOCKSCOUT_HOLDERS_URL = `https://base.blockscout.com/api/v2/tokens/${TACHI_CONTRACT}/holders`;
 const DEXSCREENER_URL = `https://api.dexscreener.com/latest/dex/tokens/${TACHI_CONTRACT}`;
 const DECIMALS = 18;
+const TOP_HOLDER_COUNT = 100; // fetch more candidates to ensure we find 20+ with live balance > 0
 
 // Base ENS Registry for .base.eth names
 const BASE_ENS_REGISTRY = '0x5B241b04234a9f7e16eF32CD559Ab930799f6E8B';
@@ -147,15 +148,15 @@ export async function GET() {
 
     const filtered = items.filter((item: any) => {
       const address = item.address?.hash?.toLowerCase();
-      return address && !excluded.has(address) && Number(item.value || '0') > 0;
+      return address && !excluded.has(address);
     });
 
     // Fetch TACHI price
     const tachiPrice = await getTachiPrice();
 
-    // Verify live onchain balance for top Blockscout candidates and sort by live balance
+    // Verify live onchain balance for all Blockscout candidates and sort by live balance
     const verified = await Promise.all(
-      filtered.slice(0, 50).map(async (item: any) => {
+      filtered.slice(0, TOP_HOLDER_COUNT).map(async (item: any) => {
         const address = item.address?.hash as `0x${string}`;
         try {
           const liveBalance = await publicClient.readContract({
@@ -202,7 +203,7 @@ export async function GET() {
           pfpUrl: linkedUser?.fc_pfp_url || null,
           xp: linkedUser?.points || 0,
         };
-      }).filter((x: any) => Number(x.rawBalance || '0') > 0)
+      })
     );
 
     return NextResponse.json(
