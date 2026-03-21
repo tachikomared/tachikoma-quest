@@ -158,3 +158,50 @@ export async function fetchCastWithViewer(
   const data = await res.json();
   return data.cast ?? null;
 }
+
+export type SearchResultCast = {
+  hash: string;
+  thread_hash: string;
+  parent_hash: string | null;
+  parent_url: string | null;
+  root_parent_url: string | null;
+  author: NeynarUser;
+  text: string;
+  timestamp: string;
+  embeds: any[];
+  type: string;
+  reactions: {
+    likes_count: number;
+    recasts_count: number;
+  };
+  replies: {
+    count: number;
+  };
+  mentioned_profiles: any[];
+  mentioned_channels: any[];
+  channel: any;
+  viewer_context?: CastViewerContext;
+};
+
+export async function searchCasts(
+  query: string,
+  authorFid?: number,
+  viewerFid?: number,
+  limit: number = 25
+): Promise<SearchResultCast[]> {
+  const params = new URLSearchParams({ q: query, limit: String(limit) });
+  if (authorFid) params.set('author_fid', String(authorFid));
+  if (viewerFid) params.set('viewer_fid', String(viewerFid));
+
+  const res = await fetch(`${API}/farcaster/cast/search/?${params.toString()}`, {
+    headers: getHeaders(),
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    throw new Error(`Neynar search cast failed: ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.result?.casts ?? [];
+}

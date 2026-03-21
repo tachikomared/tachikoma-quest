@@ -4,6 +4,7 @@ export type QuestAction =
   | 'recast_cast'
   | 'like_cast'
   | 'quote_cast'
+  | 'reply_cast'
   | 'cast_in_channel'
   | 'link_wallet'
   | 'open_external';
@@ -11,6 +12,8 @@ export type QuestAction =
 export type QuestVerification =
   | 'fc_follow_user'
   | 'fc_cast_viewer_context'
+  | 'fc_quote_cast'
+  | 'fc_reply_cast'
   | 'wallet_signature'
   | 'wallet_balance'
   | 'wallet_burn'
@@ -27,6 +30,7 @@ export type QuestTarget = {
   channelId?: string;
   defaultQuoteText?: string;
   minBalance?: string;
+  requiredText?: string; // for quote/reply verification
 };
 
 export type QuestDef = {
@@ -198,6 +202,42 @@ export const QUESTS: QuestDef[] = [
       castUrl: 'https://warpcast.com/smolekoma/0x400e79ed'
     },
     icon: '❤️',
+  },
+  {
+    id: 'fc-quote-launch',
+    title: 'Quote Launch Cast',
+    description: 'Quote the official TACHI Quest launch announcement',
+    platform: 'farcaster',
+    action: 'quote_cast',
+    verification: 'fc_quote_cast',
+    points: 300,
+    tachiReward: 0,
+    repeatable: false,
+    enabled: true,
+    target: { 
+      castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a',
+      targetFid: 2656205,
+      defaultQuoteText: 'TACHI Quest is live'
+    },
+    icon: '💬',
+  },
+  {
+    id: 'fc-reply-launch',
+    title: 'Reply to Launch Cast',
+    description: 'Reply to the official TACHI Quest launch announcement',
+    platform: 'farcaster',
+    action: 'reply_cast',
+    verification: 'fc_reply_cast',
+    points: 250,
+    tachiReward: 0,
+    repeatable: false,
+    enabled: true,
+    target: { 
+      castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a',
+      targetFid: 2656205,
+      requiredText: 'Just joined TACHI Quest'
+    },
+    icon: '↩️',
   },
   {
     id: 'invite-only',

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireCurrentUser } from '@/lib/auth';
-import { fetchCastWithViewer, verifyFarcasterFollow } from '@/lib/neynar';
+import { fetchCastWithViewer, verifyFarcasterFollow, searchCasts } from '@/lib/neynar';
 import { getQuest } from '@/lib/quests';
 import { createPublicClient, http } from 'viem';
 import { base } from 'viem/chains';
@@ -122,6 +122,11 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     );
   }
 
+  // Quote cast needs to be explicitly allowed
+  if (quest.verification === 'fc_quote_cast' || quest.verification === 'fc_reply_cast') {
+    // Allow, handled later
+  }
+
   // Get user ID
   const userRows = current.fid === 0
     ? await sql`SELECT id FROM users WHERE id = ${current.id} LIMIT 1`
@@ -204,6 +209,42 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
       type,
       viewerFid: current.fid,
       viewerContext: cast?.viewer_context ?? null,
+      verified,
+    };
+  }
+
+  if (quest.verification === 'fc_quote_cast') {
+    const targetFid = quest.target.targetFid;
+    const castHash = quest.target.castHash;
+    const searchText = quest.target.defaultQuoteText || quest.target.requiredText;
+
+    if (!targetFid || !castHash || !searchText) {
+      return NextResponse.json(
+        { verified: false, error: 'missing_quote_quest_config' },
+        { status: 400 }
+      );
+    }
+
+    // Search for user's quote/reply of this cast with the required text
+    const searchQuery = `"${searchText}"`;
+    const casts = await withRetry(() => 
+      searchCasts(searchQuery, targetFid, current.fid, 25)
+    );
+
+    // Check if any result references the original cast hash (quote or reply)
+    const isQuoteOrReply = casts.some((c: any) => {
+      const parentHash = c.parent_hash?.toLowerCase();
+      const originalHash = castHash.toLowerCase();
+      return parentHash === originalHash;
+    });
+
+    verified = isQuoteOrReply;
+    proof = {
+      castHash,
+      targetFid,
+      searchText,
+      viewerFid: current.fid,
+      searchResultsCount: casts.length,
       verified,
     };
   }
