@@ -197,24 +197,28 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
   const setStatus = (id: string, status: MissionStatus) => setStatuses(s => ({ ...s, [id]: status }));
 
   const executeMission = async (mission: any) => {
+    const openLink = async (url: string) => {
+      if (isMiniApp && (sdk as any)?.actions?.openUrl) {
+        await (sdk as any).actions.openUrl(url);
+      } else if (typeof window !== 'undefined') {
+        window.location.href = url;
+      }
+    };
+
     if (mission.platform === 'x' && mission.target?.url) {
-      if (isMiniApp) await sdk.actions.openUrl({ url: mission.target.url });
-      else window.open(mission.target.url, '_blank');
+      await openLink(mission.target.url);
       return;
     }
 
     if (mission.platform === 'farcaster') {
       if (mission.action === 'follow_user' && mission.target?.targetFid) {
-        if (isMiniApp) await sdk.actions.viewProfile({ fid: mission.target.targetFid });
-        else window.open(`https://warpcast.com/~/profiles/${mission.target.targetFid}`, '_blank');
+        const url = `https://farcaster.xyz/~/profile/${mission.target.targetFid}`;
+        await openLink(url);
       } else if (mission.target?.castUrl) {
-        // Use castUrl for both miniapp and desktop - SDK requires full URL
-        if (isMiniApp) await sdk.actions.openUrl({ url: mission.target.castUrl });
-        else window.open(mission.target.castUrl, '_blank');
+        await openLink(mission.target.castUrl);
       } else if (mission.target?.castHash) {
-        // Fallback for hash-only targets
-        if (isMiniApp) await sdk.actions.viewCast({ hash: mission.target.castHash });
-        else window.open(`https://warpcast.com/~/casts/${mission.target.castHash}`, '_blank');
+        const url = `https://farcaster.xyz/~/cast/${mission.target.castHash}`;
+        await openLink(url);
       }
     }
   };
