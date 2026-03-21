@@ -92,6 +92,7 @@ export default function HomePage() {
                   SYSTEM ONLINE
                 </div>
               </div>
+              
               <a href="https://farcaster.xyz/miniapps/nLEf2pIdso35/tachi-quest" target="_blank" rel="noreferrer" className="ml-2 px-3 py-1 rounded bg-[#ff6b00]/20 border border-[#ff6b00] text-[#ff6b00] text-[10px] font-bold hover:bg-[#ff6b00]/30 transition-colors">
                 ENGAGE APP
               </a>
