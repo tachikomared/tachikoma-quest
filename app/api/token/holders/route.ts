@@ -4,21 +4,15 @@ import { base } from 'viem/chains';
 import { sql } from '@/lib/db';
 
 const TACHI_CONTRACT = '0x39B4B879b8521d6A8C3a87cda64b969327b7fbA3';
-const BLOCKSCOUT_HOLDERS_URL = `https://base.blockscout.com/api/v2/tokens/${TACHI_CONTRACT}/holders`;
-const DEXSCREENER_URL = `https://api.dexscreener.com/latest/dex/tokens/${TACHI_CONTRACT}`;
 const DECIMALS = 18;
-const TOP_HOLDER_COUNT = 100; // fetch more candidates to ensure we find 20+ with live balance > 0
-
-// Base ENS Registry for .base.eth names
+const DEXSCREENER_URL = `https://api.dexscreener.com/latest/dex/tokens/${TACHI_CONTRACT}`;
 const BASE_ENS_REGISTRY = '0x5B241b04234a9f7e16eF32CD559Ab930799f6E8B';
-
-const alchemyKey = process.env.ALCHEMY_API_KEY || '_cJQ3B3yIO5msQ-IN-z239yz8V4WxZs6';
 const chainbaseKey = process.env.CHAINBASE_API_KEY || '';
 const chainbaseUrl = 'https://api.chainbase.online/v1/token/holders';
 
 const publicClient = createPublicClient({
   chain: base,
-  transport: http(`https://base-mainnet.g.alchemy.com/v2/${alchemyKey}`),
+  transport: http(`https://base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY || '_cJQ3B3yIO5msQ-IN-z239yz8V4WxZs6'}`),
 });
 
 const ENS_REGISTRY_ABI = [
@@ -108,29 +102,24 @@ async function resolveBaseENS(address: string): Promise<string | null> {
 
 export async function GET() {
   try {
+    if (!chainbaseKey) {
+      throw new Error('Missing CHAINBASE_API_KEY');
+    }
+
     let items: any[] = [];
-    if (chainbaseKey) {
-      for (let page = 1; page <= 10; page++) {
-        const res = await fetch(`${chainbaseUrl}?chain_id=8453&contract_address=${TACHI_CONTRACT}&page=${page}&limit=100`, {
-          headers: { 'X-API-KEY': chainbaseKey, 'Accept': 'application/json' },
-        });
-        if (!res.ok) break;
-        const data = await res.json();
-        const pageItems = data?.data || data?.result || data?.items || [];
-        if (!Array.isArray(pageItems) || pageItems.length === 0) break;
-        items = items.concat(pageItems);
-        if (pageItems.length < 100) break;
-      }
+    for (let page = 1; page <= 10; page++) {
+      const res = await fetch(`${chainbaseUrl}?chain_id=8453&contract_address=${TACHI_CONTRACT}&page=${page}&limit=100`, {
+        headers: { 'X-API-KEY': chainbaseKey, 'Accept': 'application/json' },
+      });
+      if (!res.ok) break;
+      const data = await res.json();
+      const pageItems = data?.data || data?.result || data?.items || [];
+      if (!Array.isArray(pageItems) || pageItems.length === 0) break;
+      items = items.concat(pageItems);
+      if (pageItems.length < 100) break;
     }
     if (!items.length) {
-      const res = await fetch(BLOCKSCOUT_HOLDERS_URL, {
-        headers: { 'Accept': 'application/json' },
-      });
-      if (!res.ok) {
-        throw new Error(`Blockscout error: ${res.status}`);
-      }
-      const data = await res.json();
-      items = data?.items || [];
+      throw new Error('Chainbase returned no holders');
     }
 
     // Map address -> user info (if linked)
@@ -169,16 +158,21 @@ export async function GET() {
     // Fetch TACHI price
     const tachiPrice = await getTachiPrice();
 
-    // Verify live onchain balance for all Blockscout candidates and sort by live balance
+    const normalized = filtered
+      .map((item: any) => ({
+        ...item,
+        addressHash: item.address?.hash as `0x${string}`,
+      }))
+      .filter((item: any) => item.addressHash);
+
     const verified = await Promise.all(
-      filtered.slice(0, TOP_HOLDER_COUNT).map(async (item: any) => {
-        const address = item.address?.hash as `0x${string}`;
+      normalized.map(async (item: any) => {
         try {
           const liveBalance = await publicClient.readContract({
             address: TACHI_CONTRACT as `0x${string}`,
             abi: [{ name: 'balanceOf', type: 'function', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ name: '', type: 'uint256' }] }],
             functionName: 'balanceOf',
-            args: [address],
+            args: [item.addressHash],
           });
           return { ...item, liveBalance };
         } catch {
@@ -195,11 +189,10 @@ export async function GET() {
     // Resolve Base ENS names for top holders
     const holders = await Promise.all(
       sorted.map(async (item: any, index: number) => {
-        const address = item.address?.hash;
+        const address = item.addressHash;
         const linkedUser = linkedMap.get(address?.toLowerCase());
         const balanceTokens = Number(item.liveBalance || '0') / Math.pow(10, DECIMALS);
         
-        // Try to get .base.eth name if no ENS from Blockscout
         let baseEns = item.address?.ens_domain_name;
         if (!baseEns && address) {
           baseEns = await resolveBaseENS(address);
@@ -211,7 +204,7 @@ export async function GET() {
           ens: baseEns || item.address?.ens_domain_name || null,
           balance: balanceTokens.toFixed(2),
           balanceUsd: tachiPrice > 0 ? (balanceTokens * tachiPrice).toFixed(2) : null,
-          rawBalance: item.liveBalance?.toString() || item.value || '0',
+          rawBalance: item.liveBalance?.toString() || '0',
           fid: linkedUser?.fc_fid || null,
           username: linkedUser?.fc_username || null,
           displayName: linkedUser?.fc_display_name || null,
