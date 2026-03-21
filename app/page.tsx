@@ -25,10 +25,10 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'casino', label: 'CASINO', icon: '🎰' },
   { id: 'warroom', label: 'WAR ROOM', icon: '📊' },
   { id: 'enlist', label: 'ENLIST', icon: '🔗' },
-  { id: 'pilot', label: 'PILOT', icon: 'crab-icon.png' },
+  { id: 'pilot', label: 'PILOT', icon: '🦀' },
 ];
 
-const DISCLAMIER_TEXT = 'Mini App access is trust-gated. Blue check or Neynar score 0.8+ is required unless you have an invite code.';
+const WEB_DISCLAIMER = 'This is the web connect page. Farcaster trust-gating applies only in the mini app.';
 
 export default function HomePage() {
   const { auth, isMiniApp } = useAuth();
@@ -36,11 +36,7 @@ export default function HomePage() {
   const user = auth.status === 'authenticated' ? auth.user : null;
   const isGuest = user?.fcFid === 0;
   const isAuthenticated = auth.status === 'authenticated';
-  const hasBlueCheckAccess = Boolean(user?.fcPowerBadge || (Number(user?.fcScore ?? 0) >= 0.8));
-  const [inviteCode, setInviteCode] = useState('');
-  const [inviteError, setInviteError] = useState<string | null>(null);
-  const [inviteSuccess, setInviteSuccess] = useState(false);
-  const isRestricted = isAuthenticated && !hasBlueCheckAccess && !isGuest;
+  const isMiniAppRestricted = isMiniApp && isAuthenticated && !(user?.fcPowerBadge || Number(user?.fcScore ?? 0) >= 0.8) && !isGuest;
 
   const [streak, setStreak] = useState(0);
   const [lastCheckIn, setLastCheckIn] = useState<string | undefined>();
@@ -81,47 +77,14 @@ export default function HomePage() {
     if (tab && TABS.some((t) => t.id === tab)) setActiveTab(tab);
   }, []);
 
-  const submitInviteCode = async () => {
-    setInviteError(null);
-    setInviteSuccess(false);
-    try {
-      const res = await fetch('/api/invite/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ code: inviteCode.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        setInviteError(data.error || 'Invalid invite code');
-        return;
-      }
-      setInviteSuccess(true);
-      window.location.reload();
-    } catch {
-      setInviteError('Invite validation failed');
-    }
-  };
-
-  if (isRestricted) {
+  if (isMiniAppRestricted) {
     return (
       <div className="min-h-screen bg-[#050508] text-[#f0f0f0] flex items-center justify-center px-4">
         <div className="mission-card max-w-sm text-center border-[#ff6b00] space-y-3">
           <div className="text-4xl mb-1">⛔</div>
           <div className="text-[#ff1a1a] font-black text-lg mb-2">NO ACCESS</div>
-          <div className="text-sm text-[#8a8a9a] font-mono">{DISCLAMIER_TEXT}</div>
-          <div className="border-t border-[#1a1a24] pt-3 space-y-2 text-left">
-            <label className="block text-xs font-mono text-[#8a8a9a]">INVITE CODE</label>
-            <input
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value)}
-              placeholder="Enter invite code"
-              className="w-full bg-[#050508] border border-[#1a1a24] rounded p-2 text-xs font-mono text-[#f0f0f0] focus:border-[#ff1a1a] focus:outline-none"
-            />
-            <button onClick={submitInviteCode} className="mecha-button w-full text-xs">USE INVITE</button>
-            {inviteError && <div className="text-xs text-[#ff1a1a] font-mono">{inviteError}</div>}
-            {inviteSuccess && <div className="text-xs text-[#39ff14] font-mono">Invite accepted</div>}
-          </div>
+          <div className="text-sm text-[#8a8a9a] font-mono">{WEB_DISCLAIMER}</div>
+          <div className="text-xs text-[#8a8a9a] font-mono pt-2">Use the web connect page or an invite/referral code.</div>
         </div>
       </div>
     );
@@ -135,7 +98,7 @@ export default function HomePage() {
         <div className="max-w-lg mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="text-3xl"><img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /></div>
+              <div className="text-3xl">🦀</div>
               <div>
                 <h1 className="text-lg font-black tracking-widest text-[#ff1a1a]" style={{ fontFamily: 'Orbitron, sans-serif' }}>
                   TACHI-QUEST
@@ -155,11 +118,6 @@ export default function HomePage() {
                     <span className="text-[10px] text-[#ff1a1a] font-bold">GUEST</span>
                   </div>
                 )}
-                <div className={`rounded px-2 py-1 border ${hasBlueCheckAccess ? 'bg-[#39ff14]/10 border-[#39ff14] text-[#39ff14]' : 'bg-[#ff6b00]/10 border-[#ff6b00] text-[#ff6b00]'}`}>
-                  <span className="text-[10px] font-bold">
-                    {user?.fcPowerBadge ? 'BLUE CHECK' : (Number(user?.fcScore ?? 0) >= 0.8 ? 'SCORE 0.8+' : 'NO ACCESS')}
-                  </span>
-                </div>
                 <div className="bg-[#1a1a24] border border-[#ff1a1a]/30 rounded px-3 py-1.5">
                   <div className="text-xs text-[#8a8a9a] font-mono">XP</div>
                   <div className="text-[#ff6b00] font-black text-lg" style={{ fontFamily: 'Press Start 2P, monospace' }}>
@@ -183,9 +141,7 @@ export default function HomePage() {
               }`}
               style={{ fontFamily: 'Share Tech Mono, monospace' }}
             >
-              <span className="block text-lg mb-1">
-                {tab.id === 'pilot' ? <img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain mx-auto" /> : tab.icon}
-              </span>
+              <span className="block text-lg mb-1">{tab.icon}</span>
               {tab.label}
             </button>
           ))}
@@ -341,7 +297,7 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
         <div className="mission-card holographic">
           <div className="flex items-center gap-3 mb-4">
             <div className="relative">
-              <img src={user.fcPfpUrl || '/default-avatar.png'} alt="" className="w-14 h-14 rounded border-2 border-[#ff1a1a] object-cover bg-[#1a1a24]" onError={(e) => { (e.target as HTMLImageElement).src = '/guest-avatar.jpg'; }} />
+              <img src={user.fcPfpUrl || '/default-avatar.png'} alt="" className="w-14 h-14 rounded border-2 border-[#ff1a1a] object-cover bg-[#1a1a24]" onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }} />
               <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#39ff14] rounded-full border-2 border-[#050508] flex items-center justify-center"><span className="text-xs">✓</span></div>
             </div>
             <div className="flex-1">
@@ -374,7 +330,7 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
                   {status === 'active' && <span className="text-xs bg-[#00f0ff]/20 text-[#00f0ff] px-2 py-0.5 rounded font-mono animate-pulse">⏳ EXECUTING...</span>}
                 </div>
                 <p className="text-xs text-[#8a8a9a] mb-2">{mission.description}</p>
-                <div className="flex items-center gap-3 text-xs"><span className="text-[#ff6b00] font-bold">+{mission.points} XP</span><span className="text-[#5a5a6a]">•</span><span className="text-[#00f0ff]"><img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /> {mission.tachiReward || 0} $TACHI</span></div>
+                <div className="flex items-center gap-3 text-xs"><span className="text-[#ff6b00] font-bold">+{mission.points} XP</span><span className="text-[#5a5a6a]">•</span><span className="text-[#00f0ff]">🦀 {mission.tachiReward || 0} $TACHI</span></div>
               </div>
             </div>
             <div className="flex gap-2 mt-4">
@@ -451,7 +407,7 @@ function WarRoomTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   return (
     <div className="space-y-4">
       <div className="mission-card">
-        <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest mb-3"><span className="text-lg"><img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /></span><span>TOKEN HOLDERS</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
+        <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest mb-3"><span className="text-lg">🦀</span><span>TOKEN HOLDERS</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
         <div className="flex flex-wrap gap-1.5 mb-3">
           {[
             { label: 'TACHIKOMA PRIME', color: 'text-[#00f0ff] border-[#00f0ff]/50' },
@@ -465,11 +421,10 @@ function WarRoomTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
             {holders.map((holder, i) => {
               const tier = getHolderTier(holder.balance, i + 1);
               const displayName = holder.username ? `@${holder.username}` : holder.ens || `${holder.address?.slice(0, 6)}...${holder.address?.slice(-4)}`;
-              const tierAvatar = i === 0 ? '/diamond.png' : i === 1 ? '/gold.png' : i === 2 ? '/silver.png' : '/bronze.png';
               return (
                 <a key={`${holder.address}-${i}`} href={`https://basescan.org/address/${holder.address}`} target="_blank" rel="noreferrer" className={`flex items-center gap-3 p-2 border rounded ${holder.username === user?.fcUsername ? 'bg-[#ff1a1a]/10 border-[#ff1a1a]/30' : 'bg-[#050508] border-[#1a1a24]'} hover:border-[#ff1a1a]/40 transition-colors`}>
                   <div className="flex flex-col items-center"><div className={`w-7 h-7 rounded border-2 flex items-center justify-center font-black text-[10px] ${i < 3 ? 'text-[#ff6b00] border-[#ff6b00]' : 'text-[#5a5a6a] border-[#1a1a24]'}`}>{i + 1}</div></div>
-                  <div className="w-8 h-8 rounded bg-[#1a1a24] border border-[#252535] overflow-hidden"><img src={tierAvatar} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }} /></div>
+                  <div className="w-8 h-8 rounded bg-[#1a1a24] border border-[#252535] overflow-hidden">{holder.pfpUrl ? <img src={holder.pfpUrl} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }} /> : <div className="w-full h-full flex items-center justify-center text-xs">?</div>}</div>
                   <div className="flex-1 min-w-0"><div className="flex items-center gap-1.5"><span className="text-xs font-bold truncate">{displayName}</span><span className={`text-[7px] px-1 py-0.5 border rounded ${tier.color}`}>{tier.label}</span></div><div className="text-[9px] text-[#5a5a6a] font-mono">{holder.fid ? `FID ${holder.fid}` : 'UNLINKED WALLET'}</div></div>
                   <div className="text-right"><div className="text-[#39ff14] font-black text-xs" style={{ fontFamily: 'Press Start 2P, monospace' }}>{formatNumber(holder.balance, 0)}</div><div className="text-[9px] text-[#5a5a6a] font-mono">$TACHI</div>{holder.balanceUsd && <div className="text-[8px] text-[#ff6b00] font-mono">${Number(holder.balanceUsd).toFixed(0)}</div>}</div>
                 </a>
@@ -477,7 +432,7 @@ function WarRoomTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
             })}
           </div>
         )}
-        {user && <button onClick={async () => { const rank = holders.findIndex(h => h.username === user.fcUsername) + 1; const holder = holders.find(h => h.username === user.fcUsername); const tier = holder ? getHolderTier(holder.balance, rank) : { label: 'CRAB' }; const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}?tab=warroom`; const text = `<img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /> Check out the $TACHI Holders Leaderboard! Rank #${rank || '???'} ${tier.label} // Holding ${holder?.balance || '0'} $TACHI`; if (isMiniApp && typeof window !== 'undefined' && (window as any).sdk?.actions?.composeCast) { const embedUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}?tab=warroom`; const footer = `\n\n🎮 ${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}`; await (window as any).sdk.actions.composeCast({ text: text + footer, embeds: [embedUrl] }); } else { const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); const encodedText = encodeURIComponent(text); const encodedEmbed = encodeURIComponent(shareUrl); if (isMobile) { const deepLink = `warpcast://compose?text=${encodedText}&embeds[]=${encodedEmbed}`; window.location.href = deepLink; setTimeout(() => { window.open(`https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`, '_blank'); }, 2000); } else { window.open(`https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`, '_blank'); } } }} className="mt-4 mecha-button w-full text-xs bg-[#ff1a1a]/10 border-[#ff1a1a]">📡 BROADCAST LEADERBOARD</button>}
+        {user && <button onClick={async () => { const rank = holders.findIndex(h => h.username === user.fcUsername) + 1; const holder = holders.find(h => h.username === user.fcUsername); const tier = holder ? getHolderTier(holder.balance, rank) : { label: 'CRAB' }; const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}?tab=warroom`; const text = `🦀 Check out the $TACHI Holders Leaderboard! Rank #${rank || '???'} ${tier.label} // Holding ${holder?.balance || '0'} $TACHI`; if (isMiniApp && typeof window !== 'undefined' && (window as any).sdk?.actions?.composeCast) { const embedUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}?tab=warroom`; const footer = `\n\n🎮 ${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}`; await (window as any).sdk.actions.composeCast({ text: text + footer, embeds: [embedUrl] }); } else { const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); const encodedText = encodeURIComponent(text); const encodedEmbed = encodeURIComponent(shareUrl); if (isMobile) { const deepLink = `warpcast://compose?text=${encodedText}&embeds[]=${encodedEmbed}`; window.location.href = deepLink; setTimeout(() => { window.open(`https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`, '_blank'); }, 2000); } else { window.open(`https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`, '_blank'); } } }} className="mt-4 mecha-button w-full text-xs bg-[#ff1a1a]/10 border-[#ff1a1a]">📡 BROADCAST LEADERBOARD</button>}
       </div>
 
       <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest"><span className="text-lg">📊</span><span>TOP OPERATIVES</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
@@ -536,7 +491,7 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
 
   const handleShare = async () => {
     const shareUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app';
-    const text = `<img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /> TACHI-QUEST // JOIN THE CRAB ARMY // Use my access key: ${referralCode} // Complete missions. Earn XP. Stack $TACHI.\n\n🎮 ${shareUrl}`;
+    const text = `🦀 TACHI-QUEST // JOIN THE CRAB ARMY // Use my access key: ${referralCode} // Complete missions. Earn XP. Stack $TACHI.\n\n🎮 ${shareUrl}`;
     if (isMiniApp) {
       await sdk.actions.composeCast({ text, embeds: [shareUrl] });
     } else if (navigator.share) {
@@ -546,7 +501,9 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
 
   return (
     <div className="space-y-4">
-
+      <div className="text-[10px] uppercase tracking-[0.2em] text-[#39ff14] font-mono border border-[#39ff14]/30 bg-[#39ff14]/10 rounded p-2 leading-snug">
+        IS A DECENTRALIZED ON-CHAIN MINING GAME. IT IS NOT A FINANCIAL PRODUCT, SECURITY OR INVESTMENT. WE DO NOT PROMISE NUMBERS GO UP, OR NUMBERS DO ANYTHING AT ALL. USE AT YOUR OWN RISK. ALL TACHI CONTENT, INCLUDING SOCIAL POSTS, IS FOR FUN. THIS IS NOT FINANCIAL ADVICE. DYOR. STAY DEGEN. STAY SAFU. GET $TACHI RESPONSIBLY.
+      </div>
       <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest">
         <span className="text-lg">🔗</span>
         <span>ENLISTMENT</span>
@@ -605,27 +562,15 @@ function PilotTab({ user }: { user: any }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest"><span className="text-lg"><img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /></span><span>PILOT</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
+      <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest"><span className="text-lg">🦀</span><span>PILOT PROFILE</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
       <div className="inline-flex items-center gap-2 text-[10px] font-mono px-2 py-1 rounded border border-[#00f0ff]/30 text-[#00f0ff] bg-[#00f0ff]/10 mb-1">{user.fcFid === 0 ? 'INVITE / TRUST GATED' : user.fcPowerBadge ? 'VERIFIED BLUE CHECK' : (Number(user.fcScore || 0) >= 0.8 ? 'TRUSTED USER' : 'DEGEN MODE')}</div>
       <div className="mission-card text-center">
         <div className="relative inline-block mb-4">
-          <img src={user.fcPfpUrl || '/default-avatar.png'} alt="" className="w-24 h-24 rounded-full border-4 border-[#ff1a1a] mx-auto object-cover bg-[#1a1a24]" onError={(e) => { (e.target as HTMLImageElement).src = '/guest-avatar.jpg'; }} />
+          <img src={user.fcPfpUrl || '/default-avatar.png'} alt="" className="w-24 h-24 rounded-full border-4 border-[#ff1a1a] mx-auto object-cover bg-[#1a1a24]" onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }} />
           <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#ff1a1a] text-[#050508] px-3 py-1 rounded-full text-xs font-black">PILOT</div>
         </div>
         <h2 className="text-xl font-black mb-1">{user.fcFid === 0 ? '👤 Guest Pilot' : `@${user.fcUsername}`}</h2>
         <p className="text-[#8a8a9a] text-xs font-mono mb-4">{user.fcFid === 0 ? 'WALLET MODE' : `FID #${user.fcFid}`}</p>
-      </div>
-      <div className="mission-card">
-        <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest mb-3">
-          <span className="text-lg">⚔️</span>
-          <span>MISSIONS</span>
-          <div className="flex-1 h-px bg-[#ff1a1a]/30" />
-        </div>
-        <div className="grid grid-cols-2 gap-3 text-center mb-3">
-          <div className="bg-[#050508] border border-[#1a1a24] rounded p-3"><div className="text-[#ff6b00] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>{user.points || 0}</div><div className="text-[#5a5a6a] text-xs font-mono">XP</div></div>
-          <div className="bg-[#050508] border border-[#1a1a24] rounded p-3"><div className="text-[#39ff14] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>{user.completions?.length || 0}</div><div className="text-[#5a5a6a] text-xs font-mono">DONE</div></div>
-        </div>
-        <div className="text-[10px] text-[#8a8a9a] font-mono text-center">Complete daily quests to build your streak</div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="mission-card text-center"><div className="text-[#8a8a9a] text-xs font-mono mb-1">TOTAL XP</div><div className="text-[#ff6b00] font-black text-2xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>{user.points || 0}</div></div>
