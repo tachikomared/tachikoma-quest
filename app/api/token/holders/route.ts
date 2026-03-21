@@ -202,7 +202,7 @@ export async function GET() {
           pfpUrl: linkedUser?.fc_pfp_url || null,
           xp: linkedUser?.points || 0,
         };
-      })
+      }).filter((x: any) => Number(x.rawBalance || '0') > 0)
     );
 
     return NextResponse.json(
