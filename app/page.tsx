@@ -19,13 +19,13 @@ const formatNumber = (value: number | string, maxFractionDigits = 0) => {
 type Tab = 'missions' | 'staking' | 'casino' | 'warroom' | 'enlist' | 'pilot';
 type MissionStatus = 'pending' | 'active' | 'completed' | 'failed';
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
+const TABS: { id: Tab; label: string; icon: string; note?: string }[] = [
   { id: 'missions', label: 'MISSIONS', icon: '⚔️' },
-  { id: 'staking', label: 'STAKING', icon: '🪙' },
-  { id: 'casino', label: 'CASINO', icon: '🎰' },
   { id: 'warroom', label: 'WAR ROOM', icon: '📊' },
   { id: 'enlist', label: 'ENLIST', icon: '🔗' },
-  { id: 'pilot', label: 'PILOT', icon: '<img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" />' },
+  { id: 'pilot', label: 'PILOT', icon: '🦀' },
+  { id: 'staking', label: 'STAKING', icon: '🪙', note: 'IN DEV' },
+  { id: 'casino', label: 'CASINO', icon: '🎰', note: 'IN DEV' },
 ];
 
 export default function HomePage() {
@@ -125,8 +125,9 @@ export default function HomePage() {
               }`}
               style={{ fontFamily: 'Share Tech Mono, monospace' }}
             >
-              <span className="block text-lg mb-1">{tab.icon}</span>
+              <span className="block text-lg mb-1">{tab.id === 'pilot' ? <img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain mx-auto" /> : tab.icon}</span>
               {tab.label}
+              {tab.note && <span className="block mt-1 text-[9px] text-[#8a8a9a]">{tab.note}</span>}
             </button>
           ))}
         </div>
@@ -173,7 +174,20 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
   };
 
   useEffect(() => {
-    fetch('/api/quests').then(r => r.json()).then(d => setMissions(d.quests || []));
+    fetch('/api/quests')
+      .then(r => r.json())
+      .then(d => {
+        const quests = Array.isArray(d.quests) ? d.quests : [];
+        setMissions(quests.length ? quests : [
+          { id: 'fc-follow-smolekoma', title: 'Follow @smolekoma', description: 'Follow the creator on Farcaster', points: 150, icon: '👤', platform: 'farcaster', verification: 'fc_follow_user' },
+          { id: 'fc-recast-launch', title: 'Recast Launch Cast', description: 'Recast the official TACHI Quest launch announcement', points: 250, icon: '🔄', platform: 'farcaster', verification: 'fc_cast_viewer_context' },
+          { id: 'fc-like-launch', title: 'Like Launch Cast', description: 'Like the official TACHI Quest launch announcement', points: 100, icon: '❤️', platform: 'farcaster', verification: 'fc_cast_viewer_context' },
+          { id: 'wallet-link', title: 'Link Base Wallet', description: 'Link a Base wallet for airdrop eligibility', points: 200, icon: '🔗', platform: 'wallet', verification: 'wallet_signature' },
+          { id: 'x-follow', title: 'Follow on X', description: 'Follow the TACHI account on X', points: 120, icon: '𝕏', platform: 'x', verification: 'manual_open' },
+          { id: 'x-like', title: 'Like the X Launch Post', description: 'Like the launch post on X', points: 80, icon: '𝕏', platform: 'x', verification: 'manual_open' },
+          { id: 'hodl-tachi', title: 'HODL $TACHI', description: 'Hold 100+ $TACHI in your linked wallet', points: 1000, icon: '🪙', platform: 'wallet', verification: 'wallet_balance' },
+        ]);
+      });
     if (user) refreshCompletions();
   }, [user]);
 
@@ -314,7 +328,7 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
                   {status === 'active' && <span className="text-xs bg-[#00f0ff]/20 text-[#00f0ff] px-2 py-0.5 rounded font-mono animate-pulse">⏳ EXECUTING...</span>}
                 </div>
                 <p className="text-xs text-[#8a8a9a] mb-2">{mission.description}</p>
-                <div className="flex items-center gap-3 text-xs"><span className="text-[#ff6b00] font-bold">+{mission.points} XP</span><span className="text-[#5a5a6a]">•</span><span className="text-[#00f0ff]"><img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /> {mission.tachiReward || 0} $TACHI</span></div>
+                <div className="flex items-center gap-3 text-xs"><span className="text-[#ff6b00] font-bold">+{mission.points} XP</span><span className="text-[#5a5a6a]">•</span><span className="text-[#00f0ff]">XP ONLY</span></div>
               </div>
             </div>
             <div className="flex gap-2 mt-4">
@@ -545,7 +559,7 @@ function PilotTab({ user }: { user: any }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest"><span className="text-lg"><img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /></span><span>PILOT PROFILE</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
+      <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest"><span className="text-lg">🦀</span><span>PILOT PROFILE</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
       <div className="inline-flex items-center gap-2 text-[10px] font-mono px-2 py-1 rounded border border-[#00f0ff]/30 text-[#00f0ff] bg-[#00f0ff]/10 mb-1">{user.fcFid === 0 ? 'INVITE / TRUST GATED' : user.fcPowerBadge ? 'VERIFIED BLUE CHECK' : (Number(user.fcScore || 0) >= 0.8 ? 'TRUSTED USER' : 'DEGEN MODE')}</div>
       <div className="mission-card text-center">
         <div className="relative inline-block mb-4">
@@ -573,26 +587,12 @@ function PilotTab({ user }: { user: any }) {
           <div className="text-center py-4"><div className="text-[#5a5a6a] text-sm mb-3">No wallet linked</div><p className="text-xs text-[#8a8a9a] font-mono mb-4">Link your wallet to receive $TACHI airdrops</p></div>
         )}
       </div>
-      <TachiTransferSection balance={formattedBalance} displayBalance={displayBalance} user={user} />
-      <TachiBurnSection balance={formattedBalance} displayBalance={displayBalance} user={user} />
+      <div className="mission-card">
+        <div className="text-[#ff1a1a] text-xs font-mono mb-2 tracking-wider">/// BURN $TACHI ///</div>
+        <div className="text-[10px] text-[#8a8a9a] font-mono">Burning is in development. This slot is reserved and currently inactive.</div>
+      </div>
       <div className="mission-card"><div className="text-[#00f0ff] text-xs font-mono mb-2 tracking-wider">/// YOUR ACCESS KEY ///</div><div className="bg-[#050508] border border-[#1a1a24] rounded p-3 text-center"><code className="text-[#ff1a1a] font-mono text-lg tracking-wider">{user.referralCode}</code></div></div>
     </div>
   );
 }
 
-function TachiTransferSection({ balance, displayBalance, user }: { balance: string; displayBalance: string; user: any }) {
-  const [toAddress, setToAddress] = useState('');
-  const [amount, setAmount] = useState('');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const { writeAndOpen } = useMobileWriteContract();
-  const handleTransfer = async () => { if (!user?.walletAddress || !toAddress || !amount) return; setStatus('loading'); try { await writeAndOpen({ address: TACHI_CONTRACT as `0x${string}`, abi: [{ inputs: [{ name: 'to', type: 'address' }, { name: 'value', type: 'uint256' }], name: 'transfer', outputs: [{ name: '', type: 'bool' }], stateMutability: 'nonpayable', type: 'function' }], functionName: 'transfer', args: [toAddress as `0x${string}`, BigInt(Math.floor(Number(amount) * 1e18))] }); setStatus('success'); setToAddress(''); setAmount(''); } catch (e) { console.error('[transfer] Failed:', e); setStatus('error'); } };
-  return <div className="mission-card border-[#ff1a1a]/30"><div className="text-[#ff1a1a] text-xs font-mono mb-3 tracking-wider">/// TRANSFER $TACHI ///</div><div className="space-y-3"><div><label className="text-xs text-[#8a8a9a] font-mono block mb-1">RECIPIENT ADDRESS</label><input type="text" value={toAddress} onChange={(e) => setToAddress(e.target.value)} placeholder="0x..." className="w-full bg-[#050508] border border-[#1a1a24] rounded p-2 text-xs font-mono text-[#f0f0f0] focus:border-[#ff1a1a] focus:outline-none" /></div><div><label className="text-xs text-[#8a8a9a] font-mono block mb-1">AMOUNT</label><div className="flex gap-2"><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" max={balance} className="flex-1 bg-[#050508] border border-[#1a1a24] rounded p-2 text-xs font-mono text-[#f0f0f0] focus:border-[#ff1a1a] focus:outline-none" /><button onClick={() => setAmount(balance)} className="text-xs bg-[#1a1a24] border border-[#252535] rounded px-3 text-[#8a8a9a] hover:text-[#f0f0f0]">MAX</button></div><div className="text-xs text-[#5a5a6a] mt-1">Available: {displayBalance} $TACHI</div><div className="text-[10px] text-[#ff6b00] mt-1">Connect a wallet to actually send or burn.</div></div><button onClick={handleTransfer} disabled={status === 'loading' || !toAddress || !amount || !user?.walletAddress} className="mecha-button w-full text-xs bg-[#ff1a1a]/20 border-[#ff1a1a] disabled:opacity-50">{status === 'loading' ? '⏳ BROADCASTING...' : '🚀 SEND $TACHI'}</button>{status === 'success' && <div className="text-xs text-[#39ff14] font-mono text-center">✓ TRANSFER INITIATED</div>}{status === 'error' && <div className="text-xs text-[#ff1a1a] font-mono text-center">✗ TRANSFER FAILED</div>}</div></div>;
-}
-
-function TachiBurnSection({ balance, displayBalance, user }: { balance: string; displayBalance: string; user: any }) {
-  const [amount, setAmount] = useState('');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const { writeAndOpen } = useMobileWriteContract();
-  const handleBurn = async () => { if (!user?.walletAddress || !amount) return; const parsed = Number(amount); if (!Number.isFinite(parsed) || parsed <= 0) return; const units = BigInt(Math.floor(parsed * 1e18)); if (units <= 0n) return; setStatus('loading'); try { await writeAndOpen({ address: TACHI_CONTRACT as `0x${string}`, abi: [{ inputs: [{ name: 'amount', type: 'uint256' }], name: 'burn', outputs: [], stateMutability: 'nonpayable', type: 'function' }], functionName: 'burn', args: [units] }); setStatus('success'); setAmount(''); } catch (e) { console.error('[burn] Failed:', e); setStatus('error'); } };
-  return <div className="mission-card border-[#ff1a1a]/30"><div className="text-[#ff1a1a] text-xs font-mono mb-3 tracking-wider">/// BURN $TACHI ///</div><div className="space-y-3"><div><label className="text-xs text-[#8a8a9a] font-mono block mb-1">AMOUNT TO BURN</label><div className="flex gap-2"><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" max={balance} className="flex-1 bg-[#050508] border border-[#1a1a24] rounded p-2 text-xs font-mono text-[#f0f0f0] focus:border-[#ff1a1a] focus:outline-none" /><button onClick={() => setAmount(balance)} className="text-xs bg-[#1a1a24] border border-[#252535] rounded px-3 text-[#8a8a9a] hover:text-[#f0f0f0]">MAX</button></div><div className="text-xs text-[#5a5a6a] mt-1">Available: {displayBalance} $TACHI</div></div><button onClick={handleBurn} disabled={status === 'loading' || !amount || !user?.walletAddress} className="mecha-button w-full text-xs bg-[#ff1a1a]/20 border-[#ff1a1a] disabled:opacity-50">{status === 'loading' ? '⏳ BROADCASTING...' : '🔥 BURN $TACHI'}</button>{status === 'success' && <div className="text-xs text-[#39ff14] font-mono text-center">✓ BURN INITIATED</div>}{status === 'error' && <div className="text-xs text-[#ff1a1a] font-mono text-center">✗ BURN FAILED</div>}<div className="text-[10px] text-[#5a5a6a] font-mono text-center">Burning sends tokens to the zero address and is irreversible.</div></div></div>;
-}
