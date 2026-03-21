@@ -545,12 +545,12 @@ function PilotTab({ user }: { user: any }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest"><span className="text-lg"><img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /></span><span>PILOT PROFILE</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
+      <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest"><span className="text-lg"><img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /></span><span>PILOT</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
       <div className="inline-flex items-center gap-2 text-[10px] font-mono px-2 py-1 rounded border border-[#00f0ff]/30 text-[#00f0ff] bg-[#00f0ff]/10 mb-1">{user.fcFid === 0 ? 'INVITE / TRUST GATED' : user.fcPowerBadge ? 'VERIFIED BLUE CHECK' : (Number(user.fcScore || 0) >= 0.8 ? 'TRUSTED USER' : 'DEGEN MODE')}</div>
       <div className="mission-card text-center">
         <div className="relative inline-block mb-4">
           <img src={user.fcPfpUrl || '/default-avatar.png'} alt="" className="w-24 h-24 rounded-full border-4 border-[#ff1a1a] mx-auto object-cover bg-[#1a1a24]" onError={(e) => { (e.target as HTMLImageElement).src = '/guest-avatar.jpg'; }} />
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#ff1a1a] text-[#050508] px-3 py-1 rounded-full text-xs font-black">PILOT PROFILE</div>
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#ff1a1a] text-[#050508] px-3 py-1 rounded-full text-xs font-black">PILOT</div>
         </div>
         <h2 className="text-xl font-black mb-1">{user.fcFid === 0 ? '👤 Guest Pilot' : `@${user.fcUsername}`}</h2>
         <p className="text-[#8a8a9a] text-xs font-mono mb-4">{user.fcFid === 0 ? 'WALLET MODE' : `FID #${user.fcFid}`}</p>
@@ -561,12 +561,11 @@ function PilotTab({ user }: { user: any }) {
           <span>MISSIONS</span>
           <div className="flex-1 h-px bg-[#ff1a1a]/30" />
         </div>
-        <div className="grid grid-cols-3 gap-3 text-center mb-3">
+        <div className="grid grid-cols-2 gap-3 text-center mb-3">
           <div className="bg-[#050508] border border-[#1a1a24] rounded p-3"><div className="text-[#ff6b00] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>{user.points || 0}</div><div className="text-[#5a5a6a] text-xs font-mono">XP</div></div>
           <div className="bg-[#050508] border border-[#1a1a24] rounded p-3"><div className="text-[#39ff14] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>{user.completions?.length || 0}</div><div className="text-[#5a5a6a] text-xs font-mono">DONE</div></div>
-          <div className="bg-[#050508] border border-[#1a1a24] rounded p-3"><div className="text-[#00f0ff] font-black text-xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>{streak}</div><div className="text-[#5a5a6a] text-xs font-mono">STREAK</div></div>
         </div>
-        {user && <DailyQuestCard streak={streak} completedToday={completedToday} onComplete={() => document.querySelector('.mission-card')?.scrollIntoView({ behavior: 'smooth' })} />}
+        <div className="text-[10px] text-[#8a8a9a] font-mono text-center">Complete daily quests to build your streak</div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="mission-card text-center"><div className="text-[#8a8a9a] text-xs font-mono mb-1">TOTAL XP</div><div className="text-[#ff6b00] font-black text-2xl" style={{ fontFamily: 'Press Start 2P, monospace' }}>{user.points || 0}</div></div>
