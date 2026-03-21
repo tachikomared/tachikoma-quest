@@ -181,9 +181,8 @@ export const QUESTS: QuestDef[] = [
     repeatable: false,
     enabled: true,
     target: { 
-      castHash: '0xb9230b95',
-      castUrl: 'https://farcaster.xyz/smolekoma/0xb9230b95',
-      defaultQuoteText: 'TACHI Quest is live https://farcaster.xyz/miniapps/nLEf2pIdso35/tachi-quest'
+      castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a',
+      castUrl: 'https://warpcast.com/smolekoma/0x400e79ed'
     },
     icon: '🔄',
   },
@@ -199,9 +198,8 @@ export const QUESTS: QuestDef[] = [
     repeatable: false,
     enabled: true,
     target: { 
-      castHash: '0xb9230b95',
-      castUrl: 'https://farcaster.xyz/smolekoma/0xb9230b95',
-      defaultQuoteText: 'TACHI Quest is live https://farcaster.xyz/miniapps/nLEf2pIdso35/tachi-quest'
+      castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a',
+      castUrl: 'https://warpcast.com/smolekoma/0x400e79ed'
     },
     icon: '❤️',
   },
@@ -217,10 +215,8 @@ export const QUESTS: QuestDef[] = [
     repeatable: false,
     enabled: true,
     target: { 
-      castHash: '0xb9230b95',
-      castUrl: 'https://farcaster.xyz/smolekoma/0xb9230b95',
-      targetFid: 2656205,
-      defaultQuoteText: 'TACHI Quest is live https://farcaster.xyz/miniapps/nLEf2pIdso35/tachi-quest'
+      castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a',
+      castUrl: 'https://warpcast.com/smolekoma/0x400e79ed'
     },
     icon: '💬',
   },
@@ -236,10 +232,8 @@ export const QUESTS: QuestDef[] = [
     repeatable: false,
     enabled: true,
     target: { 
-      castHash: '0xb9230b95',
-      castUrl: 'https://farcaster.xyz/smolekoma/0xb9230b95',
-      targetFid: 2656205,
-      requiredText: 'Just joined TACHI Quest https://farcaster.xyz/miniapps/nLEf2pIdso35/tachi-quest'
+      castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a',
+      castUrl: 'https://warpcast.com/smolekoma/0x400e79ed'
     },
     icon: '↩️',
   },
