@@ -216,8 +216,14 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
     }
 
     if (mission.platform === 'farcaster') {
-      if (mission.action === 'follow_user' && mission.target?.profileUrl) {
-        await openLink(mission.target.profileUrl);
+      // For follow, try SDK's followUser if available, otherwise open profile URL
+      if (mission.action === 'follow_user' && mission.target?.targetFid) {
+        if (isMiniApp && (sdk as any)?.actions?.followUser) {
+          await (sdk as any).actions.followUser({ fid: mission.target.targetFid });
+        } else {
+          const url = `https://farcaster.xyz/~/${mission.target.targetFid}`;
+          await openLink(url);
+        }
       } else if (mission.target?.castUrl) {
         await openLink(mission.target.castUrl);
       } else if (mission.target?.castHash) {
@@ -612,6 +618,21 @@ function PilotTab({ user }: { user: any }) {
     return '✓ VERIFY 100';
   };
 
+  const getHodlTier = (balance: number) => {
+    if (balance >= 10000000000) return { label: '10B HODL LVL', color: 'text-[#00f0ff] border-[#00f0ff] bg-[#00f0ff]/10' };
+    if (balance >= 1000000000) return { label: '1B HODL LVL', color: 'text-[#39ff14] border-[#39ff14] bg-[#39ff14]/10' };
+    if (balance >= 100000000) return { label: '100M HODL LVL', color: 'text-[#ff6b00] border-[#ff6b00] bg-[#ff6b00]/10' };
+    if (balance >= 10000000) return { label: '10M HODL LVL', color: 'text-[#ff1a1a] border-[#ff1a1a] bg-[#ff1a1a]/10' };
+    if (balance >= 1000000) return { label: '1M HODL LVL', color: 'text-[#00f0ff] border-[#00f0ff] bg-[#00f0ff]/10' };
+    if (balance >= 100000) return { label: '100K HODL LVL', color: 'text-[#39ff14] border-[#39ff14] bg-[#39ff14]/10' };
+    if (balance >= 10000) return { label: '10K HODL LVL', color: 'text-[#ff6b00] border-[#ff6b00] bg-[#ff6b00]/10' };
+    if (balance >= 1000) return { label: '1K HODL LVL', color: 'text-[#ff1a1a] border-[#ff1a1a] bg-[#ff1a1a]/10' };
+    if (balance >= 100) return { label: '100 HODL LVL', color: 'text-[#00f0ff] border-[#00f0ff] bg-[#00f0ff]/10' };
+    return { label: 'NO HODL', color: 'text-[#5a5a6a] border-[#5a5a6a] bg-[#5a5a6a]/10' };
+  };
+
+  const hodlTier = getHodlTier(numericBalance);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest"><span className="text-lg">🦀</span><span>PILOT PROFILE</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
@@ -622,6 +643,9 @@ function PilotTab({ user }: { user: any }) {
           <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#ff1a1a] text-[#050508] px-3 py-1 rounded-full text-xs font-black">PILOT</div>
         </div>
         <h2 className="text-xl font-black mb-1">{user.fcFid === 0 ? '👤 Guest Pilot' : `@${user.fcUsername}`}</h2>
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <span className={`text-[8px] px-2 py-0.5 border rounded ${hodlTier.color}`}>{hodlTier.label}</span>
+        </div>
         <p className="text-[#8a8a9a] text-xs font-mono mb-4">{user.fcFid === 0 ? 'WALLET MODE' : `FID #${user.fcFid}`}</p>
       </div>
       <div className="grid grid-cols-2 gap-3">
