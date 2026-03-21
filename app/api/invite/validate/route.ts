@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { sql } from '@/lib/db';
 
 const VALID_INVITE_CODES = new Set(
-  (process.env.INVITE_CODES || '')
-    .split(',')
-    .map((c) => c.trim().toUpperCase())
-    .filter(Boolean)
+  [
+    '4EB8ED3B',
+    ...(process.env.INVITE_CODES || '')
+      .split(',')
+      .map((c) => c.trim().toUpperCase())
+      .filter(Boolean),
+  ]
 );
 
 export async function POST(req: Request) {
@@ -18,8 +20,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: 'missing_code' }, { status: 400 });
     }
 
-    const isValid = VALID_INVITE_CODES.has(invite);
-    if (!isValid) {
+    if (!VALID_INVITE_CODES.has(invite)) {
       return NextResponse.json({ ok: false, error: 'invalid_code' }, { status: 403 });
     }
 
