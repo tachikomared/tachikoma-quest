@@ -24,8 +24,8 @@ const TABS: { id: Tab; label: string; icon: string; note?: string }[] = [
   { id: 'warroom', label: 'WAR ROOM', icon: '📊' },
   { id: 'enlist', label: 'ENLIST', icon: '🔗' },
   { id: 'pilot', label: 'PILOT', icon: 'crab-icon.png' },
-  { id: 'staking', label: 'STAKING', icon: '🪙', note: 'DEV' },
-  { id: 'casino', label: 'CASINO', icon: '🎰', note: 'DEV' },
+  { id: 'staking', label: 'STAKING', icon: '🪙', note: 'IN DEV' },
+  { id: 'casino', label: 'CASINO', icon: '🎰', note: 'IN DEV' },
 ];
 
 export default function HomePage() {
@@ -176,7 +176,20 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
   };
 
   useEffect(() => {
-    fetch('/api/quests').then(r => r.json()).then(d => setMissions(d.quests || []));
+    fetch('/api/quests')
+      .then(r => r.json())
+      .then(d => {
+        const quests = Array.isArray(d.quests) ? d.quests : [];
+        setMissions(quests.length ? quests : [
+          { id: 'fc-follow-smolekoma', title: 'Follow @smolekoma', description: 'Follow the creator on Farcaster', points: 150, icon: '👤' },
+          { id: 'fc-recast-launch', title: 'Recast Launch Cast', description: 'Recast the official TACHI Quest launch announcement', points: 250, icon: '🔄' },
+          { id: 'fc-like-launch', title: 'Like Launch Cast', description: 'Like the official TACHI Quest launch announcement', points: 100, icon: '❤️' },
+          { id: 'wallet-link', title: 'Link Base Wallet', description: 'Link a Base wallet for airdrop eligibility', points: 200, icon: '🔗' },
+          { id: 'x-follow', title: 'Follow on X', description: 'Follow the TACHI account on X', points: 120, icon: '𝕏' },
+          { id: 'x-like', title: 'Like the X Launch Post', description: 'Like the launch post on X', points: 80, icon: '𝕏' },
+          { id: 'hodl-tachi', title: 'HODL $TACHI', description: 'Hold 100+ $TACHI in your linked wallet', points: 1000, icon: '🪙' },
+        ]);
+      });
     if (user) refreshCompletions();
   }, [user]);
 
