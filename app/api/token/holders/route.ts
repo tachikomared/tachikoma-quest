@@ -139,46 +139,70 @@ export async function GET() {
     const excluded = new Set([
       // Uniswap V4 Pool Manager (not a user holder)
       '0x498581ff718922c3f8e6a244956af099b2652b2b',
+      // Burn address
+      '0x0000000000000000000000000000000000000000',
+      // Null address
+      '0x0000000000000000000000000000000000000001',
     ]);
 
     const filtered = items.filter((item: any) => {
       const address = item.address?.hash?.toLowerCase();
-      return address && !excluded.has(address);
+      return address && !excluded.has(address) && Number(item.value || '0') > 0;
     });
 
     // Fetch TACHI price
     const tachiPrice = await getTachiPrice();
 
+    // Verify live onchain balance for top Blockscout candidates and sort by live balance
+    const verified = await Promise.all(
+      filtered.slice(0, 50).map(async (item: any) => {
+        const address = item.address?.hash as `0x${string}`;
+        try {
+          const liveBalance = await publicClient.readContract({
+            address: TACHI_CONTRACT as `0x${string}`,
+            abi: [{ name: 'balanceOf', type: 'function', stateMutability: 'view', inputs: [{ name: 'account', type: 'address' }], outputs: [{ name: '', type: 'uint256' }] }],
+            functionName: 'balanceOf',
+            args: [address],
+          });
+          return { ...item, liveBalance };
+        } catch {
+          return { ...item, liveBalance: 0n };
+        }
+      })
+    );
+
+    const sorted = verified
+      .filter((x) => Number(x.liveBalance) > 0)
+      .sort((a, b) => Number(b.liveBalance) - Number(a.liveBalance))
+      .slice(0, 20);
+
     // Resolve Base ENS names for top holders
     const holders = await Promise.all(
-      filtered
-        .filter((item: any) => Number(item.value || '0') > 0)
-        .slice(0, 20)
-        .map(async (item: any, index: number) => {
-          const address = item.address?.hash;
-          const linkedUser = linkedMap.get(address?.toLowerCase());
-          const balanceTokens = Number(item.value || '0') / Math.pow(10, DECIMALS);
-          
-          // Try to get .base.eth name if no ENS from Blockscout
-          let baseEns = item.address?.ens_domain_name;
-          if (!baseEns && address) {
-            baseEns = await resolveBaseENS(address);
-          }
+      sorted.map(async (item: any, index: number) => {
+        const address = item.address?.hash;
+        const linkedUser = linkedMap.get(address?.toLowerCase());
+        const balanceTokens = Number(item.liveBalance || '0') / Math.pow(10, DECIMALS);
+        
+        // Try to get .base.eth name if no ENS from Blockscout
+        let baseEns = item.address?.ens_domain_name;
+        if (!baseEns && address) {
+          baseEns = await resolveBaseENS(address);
+        }
 
-          return {
-            rank: index + 1,
-            address,
-            ens: baseEns || item.address?.ens_domain_name || null,
-            balance: balanceTokens.toFixed(2),
-            balanceUsd: tachiPrice > 0 ? (balanceTokens * tachiPrice).toFixed(2) : null,
-            rawBalance: item.value || '0',
-            fid: linkedUser?.fc_fid || null,
-            username: linkedUser?.fc_username || null,
-            displayName: linkedUser?.fc_display_name || null,
-            pfpUrl: linkedUser?.fc_pfp_url || null,
-            xp: linkedUser?.points || 0,
-          };
-        })
+        return {
+          rank: index + 1,
+          address,
+          ens: baseEns || item.address?.ens_domain_name || null,
+          balance: balanceTokens.toFixed(2),
+          balanceUsd: tachiPrice > 0 ? (balanceTokens * tachiPrice).toFixed(2) : null,
+          rawBalance: item.liveBalance?.toString() || item.value || '0',
+          fid: linkedUser?.fc_fid || null,
+          username: linkedUser?.fc_username || null,
+          displayName: linkedUser?.fc_display_name || null,
+          pfpUrl: linkedUser?.fc_pfp_url || null,
+          xp: linkedUser?.points || 0,
+        };
+      })
     );
 
     return NextResponse.json(
