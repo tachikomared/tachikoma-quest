@@ -13,6 +13,8 @@ const TOP_HOLDER_COUNT = 100; // fetch more candidates to ensure we find 20+ wit
 const BASE_ENS_REGISTRY = '0x5B241b04234a9f7e16eF32CD559Ab930799f6E8B';
 
 const alchemyKey = process.env.ALCHEMY_API_KEY || '_cJQ3B3yIO5msQ-IN-z239yz8V4WxZs6';
+const chainbaseKey = process.env.CHAINBASE_API_KEY || '';
+const chainbaseUrl = 'https://api.chainbase.online/v1/token/holders';
 
 const publicClient = createPublicClient({
   chain: base,
@@ -106,17 +108,30 @@ async function resolveBaseENS(address: string): Promise<string | null> {
 
 export async function GET() {
   try {
-    // Pull top holders from Blockscout (all token holders)
-    const res = await fetch(BLOCKSCOUT_HOLDERS_URL, {
-      headers: { 'Accept': 'application/json' },
-    });
-
-    if (!res.ok) {
-      throw new Error(`Blockscout error: ${res.status}`);
+    let items: any[] = [];
+    if (chainbaseKey) {
+      for (let page = 1; page <= 10; page++) {
+        const res = await fetch(`${chainbaseUrl}?chain_id=8453&contract_address=${TACHI_CONTRACT}&page=${page}&limit=100`, {
+          headers: { 'X-API-KEY': chainbaseKey, 'Accept': 'application/json' },
+        });
+        if (!res.ok) break;
+        const data = await res.json();
+        const pageItems = data?.data || data?.result || data?.items || [];
+        if (!Array.isArray(pageItems) || pageItems.length === 0) break;
+        items = items.concat(pageItems);
+        if (pageItems.length < 100) break;
+      }
     }
-
-    const data = await res.json();
-    const items = data?.items || [];
+    if (!items.length) {
+      const res = await fetch(BLOCKSCOUT_HOLDERS_URL, {
+        headers: { 'Accept': 'application/json' },
+      });
+      if (!res.ok) {
+        throw new Error(`Blockscout error: ${res.status}`);
+      }
+      const data = await res.json();
+      items = data?.items || [];
+    }
 
     // Map address -> user info (if linked)
     const linked = await sql`
@@ -209,7 +224,7 @@ export async function GET() {
     return NextResponse.json(
       {
         holders,
-        totalHolders: data?.total || holders.length,
+        totalHolders: items.length || holders.length,
         priceUsd: tachiPrice,
       },
       { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } }
