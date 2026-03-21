@@ -216,9 +216,8 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
     }
 
     if (mission.platform === 'farcaster') {
-      if (mission.action === 'follow_user' && mission.target?.targetFid) {
-        const url = `https://farcaster.xyz/~/profile/${mission.target.targetFid}`;
-        await openLink(url);
+      if (mission.action === 'follow_user' && mission.target?.profileUrl) {
+        await openLink(mission.target.profileUrl);
       } else if (mission.target?.castUrl) {
         await openLink(mission.target.castUrl);
       } else if (mission.target?.castHash) {
@@ -240,10 +239,14 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
       try {
         const res = await fetch(`/api/quests/${mission.id}/verify`, { method: 'POST' });
         const data = await res.json();
-        if (data.verified) {
+        const walletBalance = Number(data?.balance ?? data?.formattedBalance ?? 0);
+        const threshold = Number(mission.target?.min || 0);
+        const verified = mission.verification === 'wallet_burn' ? Boolean(data?.verified) : walletBalance >= threshold;
+        if (verified) {
           setStatus(mission.id, 'completed');
           await refreshAuth();
           await refreshCompletions();
+          setReceiptModal({ isOpen: true, quest: mission });
         } else setStatus(mission.id, 'failed');
       } catch {
         setStatus(mission.id, 'failed');
@@ -370,7 +373,7 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
 
               {mission.platform === 'wallet' && mission.verification === 'wallet_balance' && (
                 <button onClick={() => verifyMission(mission)} disabled={status === 'active' || completedIds.has(mission.id)} className="mecha-button flex-1 text-xs bg-[#ff1a1a]/20">
-                  {status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ VERIFIED' : `✓ VERIFY ${mission.target?.min ? formatNumber(mission.target.min, 0) : ''}`}
+                  {status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ VERIFIED' : tieredHodlLabel(mission.target?.min)}
                 </button>
               )}
 
@@ -583,7 +586,10 @@ function PilotTab({ user }: { user: any }) {
     setFastBalanceLoading(true);
     fetch('/api/token/balance')
       .then(r => r.json())
-      .then(d => { if (d?.formattedBalance) setFastBalance(d.formattedBalance); })
+      .then(d => {
+        const balance = d?.balance ?? d?.formattedBalance ?? '0';
+        setFastBalance(String(balance));
+      })
       .catch(() => null)
       .finally(() => setFastBalanceLoading(false));
   }, [user?.walletAddress]);
@@ -592,6 +598,19 @@ function PilotTab({ user }: { user: any }) {
   const numericBalance = tachiBalance ? (Number(tachiBalance) / 1e18) : Number(fastBalance || '0');
   const formattedBalance = numericBalance.toFixed(4);
   const displayBalance = formatNumber(numericBalance, 0);
+
+  const tieredHodlLabel = (min?: number) => {
+    if (!min) return '✓ VERIFY';
+    if (min >= 10000000000) return '✓ VERIFY 10B';
+    if (min >= 1000000000) return '✓ VERIFY 1B';
+    if (min >= 100000000) return '✓ VERIFY 100M';
+    if (min >= 10000000) return '✓ VERIFY 10M';
+    if (min >= 1000000) return '✓ VERIFY 1M';
+    if (min >= 100000) return '✓ VERIFY 100K';
+    if (min >= 10000) return '✓ VERIFY 10K';
+    if (min >= 1000) return '✓ VERIFY 1K';
+    return '✓ VERIFY 100';
+  };
 
   return (
     <div className="space-y-4">
