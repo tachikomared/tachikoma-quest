@@ -667,8 +667,7 @@ function PilotTab({ user }: { user: any }) {
         <div className="text-[10px] text-[#8a8a9a] font-mono">Burning is in development. This slot is reserved and currently inactive.</div>
       </div>
       <div className="mission-card"><div className="text-[#00f0ff] text-xs font-mono mb-2 tracking-wider">/// YOUR ACCESS KEY ///</div><div className="bg-[#050508] border border-[#1a1a24] rounded p-3 text-center"><code className="text-[#ff1a1a] font-mono text-lg tracking-wider">{user.referralCode}</code></div></div>
-      </div>
-    </main>
+    </div>
   );
 }
 
