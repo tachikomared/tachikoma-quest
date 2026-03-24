@@ -34,6 +34,8 @@ export default function HomePage() {
   const user = auth.status === 'authenticated' ? auth.user : null;
   const isGuest = user?.fcFid === 0;
   const isAuthenticated = auth.status === 'authenticated';
+  const streak = 0;
+  const completedToday = false;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
