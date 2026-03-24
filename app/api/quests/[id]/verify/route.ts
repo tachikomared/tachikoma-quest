@@ -131,7 +131,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
   // Get user ID
   const userRows = current.fid === 0
     ? await sql`SELECT id FROM users WHERE id = ${current.id} LIMIT 1`
-    : await sql`SELECT id FROM users WHERE fc_fid = ${current.fid} LIMIT 1`;
+    : await sql`SELECT id FROM users WHERE fc_fid = ${current.fid ?? 0} LIMIT 1`;
 
   if (!userRows.length) {
     return NextResponse.json(
@@ -168,7 +168,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
         { status: 400 }
       );
     }
-    verified = await withRetry(() => verifyFarcasterFollow(current.fid, targetFid));
+    verified = await withRetry(() => verifyFarcasterFollow(current.fid!, targetFid));
     proof = { targetFid, viewerFid: current.fid, verified };
   }
 
@@ -182,7 +182,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     }
     const type = quest.target.castHash ? 'hash' : 'url';
 
-    let cast = await withRetry(() => fetchCastWithViewer(identifier, type, current.fid));
+    let cast = await withRetry(() => fetchCastWithViewer(identifier, type, current.fid!));
 
     const checkViewerContext = (c: any) => {
       if (!c?.viewer_context) return false;
@@ -197,7 +197,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     if (!verifiedInViewerContext) {
       for (let i = 0; i < 3; i += 1) {
         await new Promise((resolve) => setTimeout(resolve, 1500 * (i + 1)));
-        cast = await fetchCastWithViewer(identifier, type, current.fid);
+        cast = await fetchCastWithViewer(identifier, type, current.fid!);
         verifiedInViewerContext = checkViewerContext(cast);
         if (verifiedInViewerContext) break;
       }
@@ -217,7 +217,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
   if (quest.verification === 'fc_quote_cast') {
     const targetFid = quest.target.targetFid;
     const castHash = quest.target.castHash;
-    const searchText = quest.target.defaultQuoteText || quest.target.requiredText;
+    const searchText = quest.target.defaultQuoteText || (quest.target as any).requiredText;
 
     if (!targetFid || !castHash || !searchText) {
       return NextResponse.json(

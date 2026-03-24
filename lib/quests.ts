@@ -11,8 +11,12 @@ export type QuestAction =
 export type QuestVerification =
   | 'fc_follow_user'
   | 'fc_cast_viewer_context'
+  | 'fc_quote_cast'
+  | 'fc_reply_cast'
   | 'wallet_signature'
   | 'manual_open'
+  | 'wallet_balance'
+  | 'wallet_burn'
   | 'referral_qualified';
 
 export type QuestStatus = 'idle' | 'opened' | 'verifying' | 'verified' | 'failed';

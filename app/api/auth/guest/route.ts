@@ -79,7 +79,7 @@ export async function POST(req: Request) {
       `;
     }
 
-    const sessionToken = await signSession({ fid, username: 'guest', userId });
+    const sessionToken = await signSession({ fid, username: 'guest', userId, authMode: 'farcaster' });
     const cookieStore = await cookies();
     cookieStore.set('session', sessionToken, {
       httpOnly: true,

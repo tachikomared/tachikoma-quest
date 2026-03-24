@@ -127,7 +127,7 @@ export default function HomePage() {
   );
 }
 
-function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; isMiniApp: boolean; streak: number; completedToday: boolean; }) {
+function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean; }) {
   const [missions, setMissions] = useState<any[]>([]);
   const [statuses, setStatuses] = useState<Record<string, MissionStatus>>({});
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
@@ -223,6 +223,7 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
         } else {
           await openLink(mission.target.profileUrl);
         }
+      }
     }
   };
 
@@ -329,7 +330,7 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
         </div>
       )}
 
-      {user && <DailyQuestCard streak={streak} completedToday={completedToday} onComplete={() => document.querySelector('.mission-card')?.scrollIntoView({ behavior: 'smooth' })} />}
+      {user && <DailyQuestCard streak={0} completedToday={false} onComplete={() => document.querySelector('.mission-card')?.scrollIntoView({ behavior: 'smooth' })} />}
 
       <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest"><span className="text-lg">⚔️</span><span>ACTIVE MISSIONS</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
       <div className="text-[10px] text-[#8a8a9a] font-mono">Each mission is a deployable objective. Complete, verify, then flex like you meant it.</div>

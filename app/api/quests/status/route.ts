@@ -19,7 +19,7 @@ export async function GET() {
           SELECT qc.quest_id
           FROM quest_claims qc
           JOIN users u ON u.id = qc.user_id
-          WHERE u.fc_fid = ${current.fid}
+          WHERE u.fc_fid = ${current.fid!}
         `;
 
     const completed = rows.map((r: any) => r.quest_id);

@@ -14,7 +14,7 @@ export async function GET() {
     }
 
     // Fetch fresh data from Neynar
-    const neynarUser = await fetchUserWithScore(current.fid);
+    const neynarUser = await fetchUserWithScore(current.fid!);
     
     if (!neynarUser) {
       return NextResponse.json({ error: 'Neynar user not found' }, { status: 404 });
@@ -33,7 +33,7 @@ export async function GET() {
         fc_following = ${neynarUser.following_count ?? 0},
         fc_power_badge = ${neynarUser.power_badge ?? false},
         updated_at = NOW()
-      WHERE fc_fid = ${current.fid}
+      WHERE fc_fid = ${current.fid!}
     `;
     
     // Return fresh data
@@ -41,7 +41,7 @@ export async function GET() {
       SELECT fc_fid, fc_username, fc_display_name, fc_pfp_url, fc_bio,
              fc_followers, fc_following, fc_power_badge
       FROM users
-      WHERE fc_fid = ${current.fid}
+      WHERE fc_fid = ${current.fid!}
       LIMIT 1
     `;
     

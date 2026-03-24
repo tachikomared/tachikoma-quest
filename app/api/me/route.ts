@@ -49,7 +49,7 @@ async function getStreakInfo(userId: string) {
 export async function GET() {
   try {
     const current = await requireCurrentUser();
-    const user = await getFullUser(current.fid, current.id);
+    const user = await getFullUser(current.fid!);
     const { streak, completedToday } = await getStreakInfo(current.id);
 
     return NextResponse.json(

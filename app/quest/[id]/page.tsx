@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 
-export async function generateMetadata({ params }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const domain = process.env.NEXT_PUBLIC_DOMAIN;
   const questId = params.id;
   const embedUrl = `https://${domain}/api/quests/${questId}/embed`;

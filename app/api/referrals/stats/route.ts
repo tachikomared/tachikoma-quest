@@ -11,7 +11,7 @@ export async function GET() {
 
     const userRows = current.fid === 0
       ? await sql`SELECT id, referral_code FROM users WHERE id = ${current.id} LIMIT 1`
-      : await sql`SELECT id, referral_code FROM users WHERE fc_fid = ${current.fid} LIMIT 1`;
+      : await sql`SELECT id, referral_code FROM users WHERE fc_fid = ${current.fid!} LIMIT 1`;
 
     if (!userRows.length) {
       return NextResponse.json({ enlisted: 0, active: 0, xpEarned: 0, recruits: [] });

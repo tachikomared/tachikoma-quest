@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     : await sql`
         SELECT id, referral_code, referred_by_code
         FROM users
-        WHERE fc_fid = ${current.fid}
+        WHERE fc_fid = ${current.fid!}
         LIMIT 1
       `;
 

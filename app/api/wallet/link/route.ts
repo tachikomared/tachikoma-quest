@@ -68,7 +68,7 @@ export async function POST(req: Request) {
   // Get user ID
   const userRows = isGuest
     ? await sql`SELECT id FROM users WHERE id = ${current.id} LIMIT 1`
-    : await sql`SELECT id FROM users WHERE fc_fid = ${current.fid} LIMIT 1`;
+    : await sql`SELECT id FROM users WHERE fc_fid = ${current.fid!} LIMIT 1`;
 
   if (!userRows.length) {
     return NextResponse.json(

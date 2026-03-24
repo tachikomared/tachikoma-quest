@@ -216,8 +216,8 @@ export async function getFullUser(fid: number): Promise<FullUser | null> {
   }
 }
 
-export async function setSession(fid: number, username: string | null, userId: string): Promise<void> {
-  const token = await signSession({ fid, username, userId });
+export async function setSession(fid: number, username: string | null, userId: string, authMode: AuthMode = 'farcaster', walletAddress?: string): Promise<void> {
+  const token = await signSession({ fid, username, userId, authMode, walletAddress });
   const cookieStore = await cookies();
   cookieStore.set('session', token, {
     httpOnly: true,

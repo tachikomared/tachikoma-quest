@@ -64,7 +64,7 @@ export async function GET(req: Request) {
           SELECT w.address AS wallet_address
           FROM wallets w
           JOIN users u ON u.id = w.user_id
-          WHERE u.fc_fid = ${current.fid} AND w.verified = true
+          WHERE u.fc_fid = ${current.fid!} AND w.verified = true
           LIMIT 1
         `;
     
