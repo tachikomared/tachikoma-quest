@@ -79,7 +79,6 @@ export async function GET(req: Request) {
       });
     }
 
-    // Get token balance
     const balance = await publicClient.readContract({
       address: TACHI_CONTRACT as `0x${string}`,
       abi: ERC20_ABI,
@@ -88,7 +87,7 @@ export async function GET(req: Request) {
     });
 
     // Get token info
-    const [decimals, symbol, totalSupply] = await Promise.all([
+    const [decimals, symbol] = await Promise.all([
       publicClient.readContract({
         address: TACHI_CONTRACT as `0x${string}`,
         abi: ERC20_ABI,
@@ -99,14 +98,9 @@ export async function GET(req: Request) {
         abi: ERC20_ABI,
         functionName: 'symbol',
       }),
-      publicClient.readContract({
-        address: TACHI_CONTRACT as `0x${string}`,
-        abi: ERC20_ABI,
-        functionName: 'totalSupply',
-      }),
     ]);
 
-    const formattedBalance = Math.floor(Number(balance) / Math.pow(10, decimals));
+    const formattedBalance = Number(balance) / Math.pow(10, Number(decimals));
 
     return NextResponse.json(
       {
@@ -117,8 +111,7 @@ export async function GET(req: Request) {
         walletAddress,
         tokenInfo: {
           symbol,
-          decimals,
-          totalSupply: formatEther(totalSupply),
+          decimals: Number(decimals),
           contractAddress: TACHI_CONTRACT,
         },
       },
