@@ -94,7 +94,6 @@ export default function HomePage() {
               </div>
               
               <a href="https://farcaster.xyz/miniapps/nLEf2pIdso35/tachi-quest" target="_blank" rel="noreferrer" className="ml-2 px-3 py-1 rounded bg-[#ff6b00]/20 border border-[#ff6b00] text-[#ff6b00] text-[10px] font-bold hover:bg-[#ff6b00]/30 transition-colors">
-                ENGAGE APP
               </a>
             </div>
             {isAuthenticated && user && (
@@ -155,6 +154,16 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
   const [missions, setMissions] = useState<any[]>([]);
   const [statuses, setStatuses] = useState<Record<string, MissionStatus>>({});
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+  // Re-syncing balance display and quest buttons to use a shared, correct numericBalance
+  const [numericBalance, setNumericBalance] = useState(0);
+
+  useEffect(() => {
+    fetch('/api/token/balance')
+      .then(r => r.json())
+      .then(d => setNumericBalance(Number(d?.balance ?? d?.formattedBalance ?? 0)))
+      .catch(() => null);
+  }, []);
+
   const [receiptModal, setReceiptModal] = useState<{ isOpen: boolean; quest: any; }>({ isOpen: false, quest: null });
   const { connect, connectors, isPending: isConnecting } = useConnect();
   const { address, isConnected } = useAccount();
@@ -392,8 +401,8 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
               )}
 
               {mission.platform === 'wallet' && mission.verification === 'wallet_balance' && (
-                <button onClick={() => verifyMission(mission)} disabled={status === 'active' || completedIds.has(mission.id)} className="mecha-button flex-1 text-xs bg-[#ff1a1a]/20">
-                  {status === 'active' ? '⏳ VERIFYING...' : completedIds.has(mission.id) ? '✅ VERIFIED' : tieredHodlLabel(mission.target?.min)}
+                <button disabled={true} className={`mecha-button flex-1 text-xs ${numericBalance >= (mission.target?.min || 0) ? 'bg-[#39ff14]/10 border-[#39ff14] text-[#39ff14]' : 'bg-[#5a5a6a]/10 border-[#5a5a6a] text-[#8a8a9a]'}`}>
+                  {numericBalance >= (mission.target?.min || 0) ? '✅ ACHIEVED' : '🔒 LOCKED'}
                 </button>
               )}
 
@@ -616,7 +625,7 @@ function PilotTab({ user }: { user: any }) {
 
   if (!user) return null;
   const numericBalance = tachiBalance ? (Number(tachiBalance) / 1e18) : Number(fastBalance || '0');
-  const formattedBalance = numericBalance.toFixed(4);
+  const formattedBalance = numericBalance.toFixed(0);
   const displayBalance = formatNumber(numericBalance, 0);
 
   const tieredHodlLabel = (min?: number) => {

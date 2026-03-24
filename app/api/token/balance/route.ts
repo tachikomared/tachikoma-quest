@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import { createPublicClient, http, formatEther } from 'viem';
 import { base } from 'viem/chains';
@@ -105,12 +106,12 @@ export async function GET(req: Request) {
       }),
     ]);
 
-    const formattedBalance = Number(balance) / Math.pow(10, decimals);
+    const formattedBalance = Math.floor(Number(balance) / Math.pow(10, decimals));
 
     return NextResponse.json(
       {
         balance: balance.toString(),
-        formattedBalance: formattedBalance.toFixed(4),
+        formattedBalance: formattedBalance.toString(),
         hasTokens: formattedBalance > 0,
         walletLinked: true,
         walletAddress,
