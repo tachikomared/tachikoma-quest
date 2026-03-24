@@ -75,9 +75,6 @@ export default function HomePage() {
                   SYSTEM ONLINE
                 </div>
               </div>
-              
-              <a href="https://farcaster.xyz/miniapps/nLEf2pIdso35/tachi-quest" target="_blank" rel="noreferrer" className="hidden ml-2 px-3 py-1 rounded bg-[#ff6b00]/20 border border-[#ff6b00] text-[#ff6b00] text-[10px] font-bold hover:bg-[#ff6b00]/30 transition-colors">
-              </a>
             </div>
             {isAuthenticated && user && (
               <div className="flex items-center gap-2">
@@ -119,7 +116,7 @@ export default function HomePage() {
 
 
       <main className="max-w-lg mx-auto px-4 py-4 pb-24 damage-texture">
-        {activeTab === 'missions' && <MissionsTab user={user} isMiniApp={isMiniApp} streak={streak || 0} completedToday={completedToday || false} />}
+        {activeTab === 'missions' && <MissionsTab user={user} isMiniApp={isMiniApp} />}
         {activeTab === 'warroom' && <WarRoomTab user={user} isMiniApp={isMiniApp} />}
         {activeTab === 'enlist' && <EnlistTab user={user} isMiniApp={isMiniApp} />}
         {activeTab === 'pilot' && <PilotTab user={user} />}
