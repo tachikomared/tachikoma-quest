@@ -8,15 +8,14 @@ import { TACHI_CONTRACT, ERC20_BALANCE_ABI, MOCK_LEADERBOARD } from '@/data/mock
 import { useReadContract } from 'wagmi';
 import { useMobileWriteContract } from '@/hooks/useMobileWallet';
 import { QuestReceiptModal } from '@/components/quest-receipt-modal';
-import { StreakIndicator, DailyQuestCard } from '@/components/streak-indicator';
-import { NotificationBell } from '@/components/notification-bell';
+// Removed StreakIndicator, DailyQuestCard, NotificationBell as requested
 
 const formatNumber = (value: number | string, maxFractionDigits = 0) => {
   const num = Math.floor(Number(value || 0));
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: maxFractionDigits, useGrouping: false }).format(num);
 };
 
-type Tab = 'missions' | 'staking' | 'casino' | 'warroom' | 'enlist' | 'pilot';
+type Tab = 'missions' | 'warroom' | 'enlist' | 'pilot';
 type MissionStatus = 'pending' | 'active' | 'completed' | 'failed';
 
 const TABS: { id: Tab; label: string; icon: string; note?: string }[] = [
@@ -24,8 +23,6 @@ const TABS: { id: Tab; label: string; icon: string; note?: string }[] = [
   { id: 'warroom', label: 'WAR ROOM', icon: '📊' },
   { id: 'enlist', label: 'ENLIST', icon: '🔗' },
   { id: 'pilot', label: 'PILOT', icon: '🦀' },
-  { id: 'staking', label: 'STAKING', icon: '🪙', note: 'IN DEV' },
-  { id: 'casino', label: 'CASINO', icon: '🎰', note: 'IN DEV' },
 ];
 
 export default function HomePage() {
