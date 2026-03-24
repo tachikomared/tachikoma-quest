@@ -117,9 +117,7 @@ export default function HomePage() {
 
 
       <main className="max-w-lg mx-auto px-4 py-4 pb-24 damage-texture">
-        {activeTab === 'missions' && <MissionsTab user={user} isMiniApp={isMiniApp} streak={streak} completedToday={completedToday} />}
-        {activeTab === 'staking' && <StakingTab user={user} />}
-        {activeTab === 'casino' && <CasinoTab />}
+        {activeTab === 'missions' && <MissionsTab user={user} isMiniApp={isMiniApp} />}
         {activeTab === 'warroom' && <WarRoomTab user={user} isMiniApp={isMiniApp} />}
         {activeTab === 'enlist' && <EnlistTab user={user} isMiniApp={isMiniApp} />}
         {activeTab === 'pilot' && <PilotTab user={user} />}
