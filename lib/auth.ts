@@ -6,9 +6,21 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || process.env.SESSION_SECRET || 'dev-secret-min-32-chars-long!!'
 );
 
+export type AuthMode = 'farcaster' | 'base_web';
+
+export type SessionPayload = {
+  authMode: AuthMode;
+  fid?: number;
+  walletAddress?: string;
+  username?: string | null;
+  userId: string;
+};
+
 export type CurrentUser = {
   id: string;
-  fid: number;
+  authMode: AuthMode;
+  fid?: number;
+  walletAddress?: string | null;
   username: string | null;
 };
 
@@ -29,16 +41,16 @@ export type FullUser = {
   points: number;
 };
 
-async function verifySessionToken(token: string): Promise<{ fid: number; username: string | null; userId: string } | null> {
+async function verifySessionToken(token: string): Promise<SessionPayload | null> {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
-    return payload as { fid: number; username: string | null; userId: string };
+    return payload as SessionPayload;
   } catch {
     return null;
   }
 }
 
-export async function signSession(payload: { fid: number; username: string | null; userId: string }): Promise<string> {
+export async function signSession(payload: SessionPayload): Promise<string> {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -55,50 +67,67 @@ export async function requireCurrentUser(): Promise<CurrentUser> {
   }
 
   const session = await verifySessionToken(sessionCookie.value);
-  if (session?.fid === undefined || session?.fid === null) {
+  if (!session?.userId) {
     throw new Error('Invalid session');
   }
 
-  // Verify user exists in DB
-  const rows = session.fid === 0
-    ? await sql`
-        SELECT id, fc_fid, fc_username
+  if (session.authMode === 'farcaster') {
+      const rows = await sql`
+        SELECT id, fc_fid, fc_username, wallet_address
         FROM users
-        WHERE id = ${session.userId}
-        LIMIT 1
-      `
-    : await sql`
-        SELECT id, fc_fid, fc_username
-        FROM users
-        WHERE fc_fid = ${session.fid}
+        WHERE fc_fid = ${session.fid!}
         LIMIT 1
       `;
-
-  if (rows.length) {
-    return {
-      id: rows[0].id,
-      fid: rows[0].fc_fid ?? 0,
-      username: rows[0].fc_username,
-    };
+      if (rows.length) {
+          return {
+              id: rows[0].id,
+              authMode: 'farcaster',
+              fid: rows[0].fc_fid,
+              walletAddress: rows[0].wallet_address,
+              username: rows[0].fc_username
+          };
+      }
+      // Create user if not exists
+      const result = await sql`
+        INSERT INTO users (fc_fid, fc_username, referral_code)
+        VALUES (${session.fid!}, ${session.username ?? null}, encode(gen_random_bytes(4), 'hex'))
+        RETURNING id, fc_fid, fc_username
+      `;
+      return {
+          id: result[0].id,
+          authMode: 'farcaster',
+          fid: result[0].fc_fid,
+          walletAddress: null,
+          username: result[0].fc_username
+      };
+  } else {
+      const rows = await sql`
+        SELECT id, wallet_address
+        FROM users
+        WHERE wallet_address = ${session.walletAddress!}
+        LIMIT 1
+      `;
+      if (rows.length) {
+          return {
+              id: rows[0].id,
+              authMode: 'base_web',
+              walletAddress: rows[0].wallet_address,
+              username: null
+          };
+      }
+      // Create wallet user if not exists
+      const result = await sql`
+        INSERT INTO users (wallet_address, referral_code)
+        VALUES (${session.walletAddress!}, encode(gen_random_bytes(4), 'hex'))
+        RETURNING id, wallet_address
+      `;
+      return {
+          id: result[0].id,
+          authMode: 'base_web',
+          walletAddress: result[0].wallet_address,
+          username: null
+      };
   }
-
-  // Create new user if not exists - generate referral code in JS (no pgcrypto dependency)
-  if (session.fid === 0) {
-    throw new Error('Guest user not found');
-  }
-
-  const referralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-  const result = await sql`
-    INSERT INTO users (fc_fid, fc_username, referral_code)
-    VALUES (${session.fid}, ${session.username ?? null}, ${referralCode})
-    RETURNING id, fc_fid, fc_username
-  `;
-
-  return {
-    id: result[0].id,
-    fid: result[0].fc_fid,
-    username: result[0].fc_username,
-  };
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -109,60 +138,32 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   }
 }
 
-export async function getFullUser(fid: number, userId?: string): Promise<FullUser | null> {
+export async function getFullUser(fid: number): Promise<FullUser | null> {
   try {
-    // For guests (fid = 0), query by userId instead
-    const rows = fid === 0 && userId
-      ? await sql`
-          SELECT 
-            u.id,
-            u.fc_fid,
-            u.fc_username,
-            u.fc_display_name,
-            u.fc_pfp_url,
-            u.fc_bio,
-            u.fc_score,
-            u.fc_followers,
-            u.fc_following,
-            u.fc_power_badge,
-            u.referral_code,
-            u.referred_by_code,
-            MAX(w.address) AS wallet_address,
-            COALESCE(SUM(qc.points_awarded), 0)::int AS points
-          FROM users u
-          LEFT JOIN wallets w ON w.user_id = u.id AND w.verified = true
-          LEFT JOIN quest_claims qc ON qc.user_id = u.id
-          WHERE u.id = ${userId}
-          GROUP BY u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, 
-                   u.fc_bio, u.fc_score, u.fc_followers, u.fc_following, u.fc_power_badge,
-                   u.referral_code, u.referred_by_code
-          LIMIT 1
-        `
-      : await sql`
-          SELECT 
-            u.id,
-            u.fc_fid,
-            u.fc_username,
-            u.fc_display_name,
-            u.fc_pfp_url,
-            u.fc_bio,
-            u.fc_score,
-            u.fc_followers,
-            u.fc_following,
-            u.fc_power_badge,
-            u.referral_code,
-            u.referred_by_code,
-            MAX(w.address) AS wallet_address,
-            COALESCE(SUM(qc.points_awarded), 0)::int AS points
-          FROM users u
-          LEFT JOIN wallets w ON w.user_id = u.id AND w.verified = true
-          LEFT JOIN quest_claims qc ON qc.user_id = u.id
-          WHERE u.fc_fid = ${fid}
-          GROUP BY u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, 
-                   u.fc_bio, u.fc_score, u.fc_followers, u.fc_following, u.fc_power_badge,
-                   u.referral_code, u.referred_by_code
-          LIMIT 1
-        `;
+    const rows = await sql`
+      SELECT 
+        u.id,
+        u.fc_fid,
+        u.fc_username,
+        u.fc_display_name,
+        u.fc_pfp_url,
+        u.fc_bio,
+        u.fc_score,
+        u.fc_followers,
+        u.fc_following,
+        u.fc_power_badge,
+        u.referral_code,
+        u.referred_by_code,
+        u.wallet_address,
+        COALESCE(SUM(qc.points_awarded), 0)::int AS points
+      FROM users u
+      LEFT JOIN quest_claims qc ON qc.user_id = u.id
+      WHERE u.fc_fid = ${fid}
+      GROUP BY u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, 
+               u.fc_bio, u.fc_score, u.fc_followers, u.fc_following, u.fc_power_badge,
+               u.referral_code, u.referred_by_code, u.wallet_address
+      LIMIT 1
+    `;
 
     if (!rows.length) return null;
 
@@ -174,7 +175,7 @@ export async function getFullUser(fid: number, userId?: string): Promise<FullUse
       fcDisplayName: r.fc_display_name,
       fcPfpUrl: r.fc_pfp_url,
       fcBio: r.fc_bio,
-      fcScore: r.fc_score !== null && r.fc_score !== undefined ? Number(r.fc_score) : null,
+      fcScore: r.fc_score ? Number(r.fc_score) : null,
       fcFollowers: r.fc_followers || 0,
       fcFollowing: r.fc_following || 0,
       fcPowerBadge: r.fc_power_badge || false,

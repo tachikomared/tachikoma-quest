@@ -1,34 +1,20 @@
-import { NextResponse } from 'next/server';
+export const dynamic = "force-dynamic";
 import { sql } from '@/lib/db';
 
-export const revalidate = 60;
 
 export async function GET() {
-  const rows = await sql`
-    SELECT 
+  // Enhanced query to include token balance for TACHI holder leaderboard
+  const leaderboard = await sql`
+    select
       u.fc_username,
-      u.fc_fid,
-      u.fc_pfp_url,
-      u.fc_display_name,
-      COALESCE(SUM(qc.points_awarded), 0)::int AS points
-    FROM users u
-    LEFT JOIN quest_claims qc ON qc.user_id = u.id
-    GROUP BY u.id, u.fc_username, u.fc_fid, u.fc_pfp_url, u.fc_display_name
-    ORDER BY points DESC, u.created_at ASC
-    LIMIT 100
+      (coalesce(sum(qc.points_awarded), 0) + coalesce(t.balance, 0)) as score
+    from users u
+    left join quest_claims qc on qc.user_id = u.id
+    left join token_balances t on t.user_id = u.id
+    group by u.id, u.fc_username, t.balance
+    order by score desc
+    limit 20
   `;
 
-  const entries = rows.map((r, index) => ({
-    rank: index + 1,
-    fid: r.fc_fid,
-    username: r.fc_username,
-    displayName: r.fc_display_name,
-    pfpUrl: r.fc_pfp_url,
-    points: r.points,
-  }));
-
-  return NextResponse.json(
-    { entries },
-    { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' } }
-  );
+  return Response.json(leaderboard);
 }

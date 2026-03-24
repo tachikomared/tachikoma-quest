@@ -1,8 +1,8 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import { requireCurrentUser } from '@/lib/auth';
 import { sql } from '@/lib/db';
 
-export const dynamic = 'force-dynamic';
 
 // Mark all notifications as read
 export async function POST(req: Request) {

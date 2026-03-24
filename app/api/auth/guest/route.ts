@@ -1,10 +1,10 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { signSession } from '@/lib/auth';
 import { verifyMessage } from 'viem';
 import { cookies } from 'next/headers';
 
-export const dynamic = 'force-dynamic';
 
 const GUEST_PFP_URL = '/guest-avatar.jpg';
 

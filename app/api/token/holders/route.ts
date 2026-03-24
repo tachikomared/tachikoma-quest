@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import { createPublicClient, http, keccak256, toBytes } from 'viem';
 import { base } from 'viem/chains';

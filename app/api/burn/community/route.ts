@@ -1,8 +1,8 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import { requireCurrentUser } from '@/lib/auth';
 import { sql } from '@/lib/db';
 
-export const dynamic = 'force-dynamic';
 
 // Community Burner contract address (to be set after deployment)
 const COMMUNITY_BURNER = process.env.COMMUNITY_BURNER_ADDRESS || '0x0000000000000000000000000000000000000000';

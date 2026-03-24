@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireCurrentUser } from '@/lib/auth';
@@ -250,7 +251,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
   }
 
   if (quest.verification === 'wallet_balance' || quest.verification === 'wallet_burn') {
-    const minBalance = Number(quest.target.minBalance || '0');
+    const minBalance = Number((quest.target as any).minBalance || (quest.target as any).min || '0');
 
     const walletRows = await sql`
       SELECT w.address AS wallet_address
