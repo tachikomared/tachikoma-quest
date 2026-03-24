@@ -12,8 +12,8 @@ import { StreakIndicator, DailyQuestCard } from '@/components/streak-indicator';
 import { NotificationBell } from '@/components/notification-bell';
 
 const formatNumber = (value: number | string, maxFractionDigits = 0) => {
-  const num = Number(value || 0);
-  return new Intl.NumberFormat('en-US', { maximumFractionDigits: maxFractionDigits }).format(num);
+  const num = Math.floor(Number(value || 0));
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: maxFractionDigits, useGrouping: false }).format(num);
 };
 
 type Tab = 'missions' | 'staking' | 'casino' | 'warroom' | 'enlist' | 'pilot';
