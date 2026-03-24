@@ -209,7 +209,7 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
       if (isMiniApp && (sdk as any)?.actions?.openUrl) {
         await (sdk as any).actions.openUrl(url);
       } else if (typeof window !== 'undefined') {
-        window.location.href = url;
+        window.open(url, '_blank');
       }
     };
 
@@ -227,12 +227,13 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
           const url = `https://farcaster.xyz/~/${mission.target.targetFid}`;
           await openLink(url);
         }
-      } else if (mission.target?.castUrl) {
-        await openLink(mission.target.castUrl);
-      } else if (mission.target?.castHash) {
-        const url = `https://farcaster.xyz/~/cast/${mission.target.castHash}`;
-        await openLink(url);
-      }
+      } else if (mission.target?.profileUrl) {
+          if (isMiniApp && (sdk as any)?.actions?.followUser) {
+            await (sdk as any).actions.followUser({ fid: mission.target.targetFid });
+          } else {
+            await openLink(mission.target.profileUrl);
+          }
+        }
     }
   };
 
