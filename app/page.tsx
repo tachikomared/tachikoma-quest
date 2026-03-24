@@ -8,14 +8,15 @@ import { TACHI_CONTRACT, ERC20_BALANCE_ABI, MOCK_LEADERBOARD } from '@/data/mock
 import { useReadContract } from 'wagmi';
 import { useMobileWriteContract } from '@/hooks/useMobileWallet';
 import { QuestReceiptModal } from '@/components/quest-receipt-modal';
-// Removed StreakIndicator, DailyQuestCard, NotificationBell as requested
+import { StreakIndicator, DailyQuestCard } from '@/components/streak-indicator';
+import { NotificationBell } from '@/components/notification-bell';
 
 const formatNumber = (value: number | string, maxFractionDigits = 0) => {
   const num = Math.floor(Number(value || 0));
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: maxFractionDigits, useGrouping: false }).format(num);
 };
 
-type Tab = 'missions' | 'warroom' | 'enlist' | 'pilot';
+type Tab = 'missions' | 'staking' | 'casino' | 'warroom' | 'enlist' | 'pilot';
 type MissionStatus = 'pending' | 'active' | 'completed' | 'failed';
 
 const TABS: { id: Tab; label: string; icon: string; note?: string }[] = [
@@ -23,6 +24,8 @@ const TABS: { id: Tab; label: string; icon: string; note?: string }[] = [
   { id: 'warroom', label: 'WAR ROOM', icon: '📊' },
   { id: 'enlist', label: 'ENLIST', icon: '🔗' },
   { id: 'pilot', label: 'PILOT', icon: '🦀' },
+  { id: 'staking', label: 'STAKING', icon: '🪙', note: 'IN DEV' },
+  { id: 'casino', label: 'CASINO', icon: '🎰', note: 'IN DEV' },
 ];
 
 export default function HomePage() {
@@ -31,25 +34,6 @@ export default function HomePage() {
   const user = auth.status === 'authenticated' ? auth.user : null;
   const isGuest = user?.fcFid === 0;
   const isAuthenticated = auth.status === 'authenticated';
-
-  const [streak, setStreak] = useState(0);
-  const [lastCheckIn, setLastCheckIn] = useState<string | undefined>();
-  const [completedToday, setCompletedToday] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
-    fetch('/api/me')
-      .then(r => r.json())
-      .then(d => {
-        if (d.user) {
-          setStreak(d.user.streakCount || 0);
-          setLastCheckIn(d.user.streakLastDate);
-          const today = new Date().toISOString().split('T')[0];
-          setCompletedToday(d.user.streakLastDate === today);
-        }
-      })
-      .catch(() => null);
-  }, [user?.id]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -95,8 +79,6 @@ export default function HomePage() {
             </div>
             {isAuthenticated && user && (
               <div className="flex items-center gap-2">
-                <StreakIndicator streak={streak} lastCheckIn={lastCheckIn} isMiniApp={isMiniApp} />
-                <NotificationBell />
                 {isGuest && (
                   <div className="bg-[#ff1a1a]/20 border border-[#ff1a1a] rounded px-2 py-1">
                     <span className="text-[10px] text-[#ff1a1a] font-bold">GUEST</span>
@@ -132,6 +114,7 @@ export default function HomePage() {
           ))}
         </div>
       </header>
+
 
       <main className="max-w-lg mx-auto px-4 py-4 pb-24 damage-texture">
         {activeTab === 'missions' && <MissionsTab user={user} isMiniApp={isMiniApp} streak={streak} completedToday={completedToday} />}
