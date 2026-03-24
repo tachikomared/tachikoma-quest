@@ -224,15 +224,7 @@ function MissionsTab({ user, isMiniApp, streak, completedToday }: { user: any; i
         if (isMiniApp && (sdk as any)?.actions?.followUser) {
           await (sdk as any).actions.followUser({ fid: mission.target.targetFid });
         } else {
-          const url = `https://farcaster.xyz/~/${mission.target.targetFid}`;
-          await openLink(url);
-        }
-      } else if (mission.target?.profileUrl) {
-          if (isMiniApp && (sdk as any)?.actions?.followUser) {
-            await (sdk as any).actions.followUser({ fid: mission.target.targetFid });
-          } else {
-            await openLink(mission.target.profileUrl);
-          }
+          await openLink(mission.target.profileUrl);
         }
     }
   };
