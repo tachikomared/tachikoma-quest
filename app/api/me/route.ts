@@ -5,7 +5,7 @@ import { requireCurrentUser, getFullUser } from '@/lib/auth';
 export async function GET() {
   try {
     const current = await requireCurrentUser();
-    const user = await getFullUser(current.fid!);
+    const user = await getFullUser(current.id);
     console.log('[api/me] Returning user:', user?.fcFid, 'pfp:', user?.fcPfpUrl ? 'yes' : 'no', 'followers:', user?.fcFollowers);
     return NextResponse.json({ user });
   } catch (e: any) {

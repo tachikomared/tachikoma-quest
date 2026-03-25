@@ -71,63 +71,25 @@ export async function requireCurrentUser(): Promise<CurrentUser> {
     throw new Error('Invalid session');
   }
 
-  if (session.authMode === 'farcaster') {
-      const rows = await sql`
-        SELECT id, fc_fid, fc_username, wallet_address
-        FROM users
-        WHERE fc_fid = ${session.fid!}
-        LIMIT 1
-      `;
-      if (rows.length) {
-          return {
-              id: rows[0].id,
-              authMode: 'farcaster',
-              fid: rows[0].fc_fid,
-              walletAddress: rows[0].wallet_address,
-              username: rows[0].fc_username
-          };
-      }
-      // Create user if not exists
-      const result = await sql`
-        INSERT INTO users (fc_fid, fc_username, referral_code)
-        VALUES (${session.fid!}, ${session.username ?? null}, encode(gen_random_bytes(4), 'hex'))
-        RETURNING id, fc_fid, fc_username
-      `;
-      return {
-          id: result[0].id,
-          authMode: 'farcaster',
-          fid: result[0].fc_fid,
-          walletAddress: null,
-          username: result[0].fc_username
-      };
-  } else {
-      const rows = await sql`
-        SELECT id, wallet_address
-        FROM users
-        WHERE wallet_address = ${session.walletAddress!}
-        LIMIT 1
-      `;
-      if (rows.length) {
-          return {
-              id: rows[0].id,
-              authMode: 'base_web',
-              walletAddress: rows[0].wallet_address,
-              username: null
-          };
-      }
-      // Create wallet user if not exists
-      const result = await sql`
-        INSERT INTO users (wallet_address, referral_code)
-        VALUES (${session.walletAddress!}, encode(gen_random_bytes(4), 'hex'))
-        RETURNING id, wallet_address
-      `;
-      return {
-          id: result[0].id,
-          authMode: 'base_web',
-          walletAddress: result[0].wallet_address,
-          username: null
-      };
+  // Look up exactly by userId (primary key)
+  const rows = await sql`
+    SELECT id, fc_fid, fc_username, wallet_address
+    FROM users
+    WHERE id = ${session.userId}
+    LIMIT 1
+  `;
+  
+  if (rows.length) {
+    return {
+      id: rows[0].id,
+      authMode: session.authMode,
+      fid: rows[0].fc_fid || 0,
+      walletAddress: rows[0].wallet_address,
+      username: rows[0].fc_username
+    };
   }
+  
+  throw new Error('User not found');
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -138,39 +100,31 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   }
 }
 
-export async function getFullUser(fid: number): Promise<FullUser | null> {
+export async function getFullUser(userIdOrFid: string | number): Promise<FullUser | null> {
   try {
-    const rows = await sql`
-      SELECT 
-        u.id,
-        u.fc_fid,
-        u.fc_username,
-        u.fc_display_name,
-        u.fc_pfp_url,
-        u.fc_bio,
-        u.fc_score,
-        u.fc_followers,
-        u.fc_following,
-        u.fc_power_badge,
-        u.referral_code,
-        u.referred_by_code,
-        u.wallet_address,
-        COALESCE(SUM(qc.points_awarded), 0)::int AS points
-      FROM users u
-      LEFT JOIN quest_claims qc ON qc.user_id = u.id
-      WHERE u.fc_fid = ${fid}
-      GROUP BY u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, 
-               u.fc_bio, u.fc_score, u.fc_followers, u.fc_following, u.fc_power_badge,
-               u.referral_code, u.referred_by_code, u.wallet_address
-      LIMIT 1
-    `;
+    const isId = typeof userIdOrFid === 'string';
+    const rows = isId 
+      ? await sql`
+        SELECT u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, u.fc_bio, u.fc_score, u.fc_followers, u.fc_following, u.fc_power_badge, u.referral_code, u.referred_by_code, u.wallet_address, COALESCE(SUM(qc.points_awarded), 0)::int AS points
+        FROM users u LEFT JOIN quest_claims qc ON qc.user_id = u.id
+        WHERE u.id = ${userIdOrFid}
+        GROUP BY u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, u.fc_bio, u.fc_score, u.fc_followers, u.fc_following, u.fc_power_badge, u.referral_code, u.referred_by_code, u.wallet_address
+        LIMIT 1
+      `
+      : await sql`
+        SELECT u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, u.fc_bio, u.fc_score, u.fc_followers, u.fc_following, u.fc_power_badge, u.referral_code, u.referred_by_code, u.wallet_address, COALESCE(SUM(qc.points_awarded), 0)::int AS points
+        FROM users u LEFT JOIN quest_claims qc ON qc.user_id = u.id
+        WHERE u.fc_fid = ${userIdOrFid}
+        GROUP BY u.id, u.fc_fid, u.fc_username, u.fc_display_name, u.fc_pfp_url, u.fc_bio, u.fc_score, u.fc_followers, u.fc_following, u.fc_power_badge, u.referral_code, u.referred_by_code, u.wallet_address
+        LIMIT 1
+      `;
 
     if (!rows.length) return null;
 
     const r = rows[0];
     return {
       id: r.id,
-      fcFid: r.fc_fid,
+      fcFid: r.fc_fid || 0,
       fcUsername: r.fc_username,
       fcDisplayName: r.fc_display_name,
       fcPfpUrl: r.fc_pfp_url,
@@ -186,20 +140,16 @@ export async function getFullUser(fid: number): Promise<FullUser | null> {
     };
   } catch (e) {
     console.warn('[auth] getFullUser failed with extended columns, trying minimal:', e);
-    
-    // Fallback to minimal query
-    const rows = await sql`
-      SELECT id, fc_fid, fc_username, referral_code
-      FROM users
-      WHERE fc_fid = ${fid}
-      LIMIT 1
-    `;
+    const isId = typeof userIdOrFid === 'string';
+    const rows = isId 
+      ? await sql`SELECT id, fc_fid, fc_username, referral_code, wallet_address FROM users WHERE id = ${userIdOrFid} LIMIT 1`
+      : await sql`SELECT id, fc_fid, fc_username, referral_code, wallet_address FROM users WHERE fc_fid = ${userIdOrFid} LIMIT 1`;
     
     if (!rows.length) return null;
     
     return {
       id: rows[0].id,
-      fcFid: rows[0].fc_fid,
+      fcFid: rows[0].fc_fid || 0,
       fcUsername: rows[0].fc_username,
       fcDisplayName: null,
       fcPfpUrl: null,
@@ -210,7 +160,7 @@ export async function getFullUser(fid: number): Promise<FullUser | null> {
       fcPowerBadge: false,
       referralCode: rows[0].referral_code,
       referredByCode: null,
-      walletAddress: null,
+      walletAddress: rows[0].wallet_address,
       points: 0,
     };
   }
