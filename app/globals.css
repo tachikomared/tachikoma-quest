@@ -34,11 +34,10 @@
 
 @layer base {
   * {
-    border-color: hsl(var(--border));
+    /* @apply border-border; */
   }
   body {
-    background-color: #050508;
-    color: #f0f0f0;
+    @apply bg-[#050508] text-[#f0f0f0];
     font-family: 'Share Tech Mono', monospace;
   }
 }

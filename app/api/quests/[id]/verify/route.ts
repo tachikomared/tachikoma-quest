@@ -1,50 +1,8 @@
-export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { requireCurrentUser } from '@/lib/auth';
-import { fetchCastWithViewer, verifyFarcasterFollow, searchCasts } from '@/lib/neynar';
+import { fetchCastWithViewer, verifyFarcasterFollow } from '@/lib/neynar';
 import { getQuest } from '@/lib/quests';
-import { createPublicClient, http } from 'viem';
-import { base } from 'viem/chains';
-
-async function withRetry<T>(fn: () => Promise<T>, attempts = 6, delayMs = 1500): Promise<T> {
-  let lastError: unknown;
-  for (let i = 0; i < attempts; i += 1) {
-    try {
-      return await fn();
-    } catch (e) {
-      lastError = e;
-      if (i < attempts - 1) {
-        await new Promise((resolve) => setTimeout(resolve, delayMs * (i + 1)));
-      }
-    }
-  }
-  throw lastError;
-}
-
-const TACHI_CONTRACT = '0x39B4B879b8521d6A8C3a87cda64b969327b7fbA3';
-
-const ERC20_BALANCE_ABI = [
-  {
-    inputs: [{ name: 'account', type: 'address' }],
-    name: 'balanceOf',
-    outputs: [{ name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'decimals',
-    outputs: [{ name: '', type: 'uint8' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-] as const;
-
-const publicClient = createPublicClient({
-  chain: base,
-  transport: http(),
-});
 
 async function awardReferralIfQualified(userId: string) {
   // Check if user has wallet and at least one Farcaster quest
@@ -123,15 +81,10 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     );
   }
 
-  // Quote cast needs to be explicitly allowed
-  if (quest.verification === 'fc_quote_cast' || quest.verification === 'fc_reply_cast') {
-    // Allow, handled later
-  }
-
   // Get user ID
-  const userRows = current.fid === 0
-    ? await sql`SELECT id FROM users WHERE id = ${current.id} LIMIT 1`
-    : await sql`SELECT id FROM users WHERE fc_fid = ${current.fid ?? 0} LIMIT 1`;
+  const userRows = await sql`
+    SELECT id FROM users WHERE fc_fid = ${current.fid!} LIMIT 1
+  `;
 
   if (!userRows.length) {
     return NextResponse.json(
@@ -168,8 +121,8 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
         { status: 400 }
       );
     }
-    verified = await withRetry(() => verifyFarcasterFollow(current.fid!, targetFid));
-    proof = { targetFid, viewerFid: current.fid, verified };
+    verified = await verifyFarcasterFollow(current.fid!, targetFid);
+    proof = { targetFid, viewerFid: current.fid!, verified };
   }
 
   if (quest.verification === 'fc_cast_viewer_context') {
@@ -181,133 +134,21 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
       );
     }
     const type = quest.target.castHash ? 'hash' : 'url';
+    const cast = await fetchCastWithViewer(identifier, type, current.fid!);
 
-    let cast = await withRetry(() => fetchCastWithViewer(identifier, type, current.fid!));
-
-    const checkViewerContext = (c: any) => {
-      if (!c?.viewer_context) return false;
-      if (quest.action === 'recast_cast') return Boolean(c.viewer_context.recasted);
-      if (quest.action === 'like_cast') return Boolean(c.viewer_context.liked);
-      return false;
-    };
-
-    let verifiedInViewerContext = checkViewerContext(cast);
-
-    // If viewer_context is empty or false, retry a few times to avoid API lag
-    if (!verifiedInViewerContext) {
-      for (let i = 0; i < 3; i += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1500 * (i + 1)));
-        cast = await fetchCastWithViewer(identifier, type, current.fid!);
-        verifiedInViewerContext = checkViewerContext(cast);
-        if (verifiedInViewerContext) break;
-      }
+    if (quest.action === 'recast_cast') {
+      verified = Boolean(cast?.viewer_context?.recasted);
+    } else if (quest.action === 'like_cast') {
+      verified = Boolean(cast?.viewer_context?.liked);
     }
-
-    verified = verifiedInViewerContext;
 
     proof = {
       identifier,
       type,
-      viewerFid: current.fid,
+      viewerFid: current.fid!,
       viewerContext: cast?.viewer_context ?? null,
       verified,
     };
-  }
-
-  if (quest.verification === 'fc_quote_cast') {
-    const targetFid = quest.target.targetFid;
-    const castHash = quest.target.castHash;
-    const searchText = quest.target.defaultQuoteText || (quest.target as any).requiredText;
-
-    if (!targetFid || !castHash || !searchText) {
-      return NextResponse.json(
-        { verified: false, error: 'missing_quote_quest_config' },
-        { status: 400 }
-      );
-    }
-
-    // Search for user's quote/reply of this cast with the required text
-    const searchQuery = `"${searchText}"`;
-    const casts = await withRetry(() => 
-      searchCasts(searchQuery, targetFid, current.fid, 25)
-    );
-
-    // Check if any result references the original cast hash (quote or reply)
-    const isQuoteOrReply = casts.some((c: any) => {
-      const parentHash = c.parent_hash?.toLowerCase();
-      const originalHash = castHash.toLowerCase();
-      return parentHash === originalHash;
-    });
-
-    verified = isQuoteOrReply;
-    proof = {
-      castHash,
-      targetFid,
-      searchText,
-      viewerFid: current.fid,
-      searchResultsCount: casts.length,
-      verified,
-    };
-  }
-
-  if (quest.verification === 'wallet_balance' || quest.verification === 'wallet_burn') {
-    const minBalance = Number((quest.target as any).minBalance || (quest.target as any).min || '0');
-
-    const walletRows = await sql`
-      SELECT w.address AS wallet_address
-      FROM wallets w
-      WHERE w.user_id = ${userId} AND w.verified = true
-      LIMIT 1
-    `;
-
-    const walletAddress = walletRows[0]?.wallet_address;
-    if (!walletAddress) {
-      return NextResponse.json(
-        { verified: false, error: 'wallet_not_linked' },
-        { status: 400 }
-      );
-    }
-
-    if (quest.verification === 'wallet_balance') {
-      const [balance, decimals] = await Promise.all([
-        publicClient.readContract({
-          address: TACHI_CONTRACT as `0x${string}`,
-          abi: ERC20_BALANCE_ABI,
-          functionName: 'balanceOf',
-          args: [walletAddress as `0x${string}`],
-        }),
-        publicClient.readContract({
-          address: TACHI_CONTRACT as `0x${string}`,
-          abi: ERC20_BALANCE_ABI,
-          functionName: 'decimals',
-        }),
-      ]);
-
-      const formatted = Number(balance) / Math.pow(10, decimals);
-      verified = formatted >= minBalance;
-      proof = { walletAddress, balance: formatted.toFixed(4), minBalance };
-    }
-
-    if (quest.verification === 'wallet_burn') {
-      // Use Blockscout token transfers to infer total burned (to zero address)
-      const url = `https://base.blockscout.com/api/v2/addresses/${walletAddress}/token-transfers?token=${TACHI_CONTRACT}`;
-      const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-      if (!res.ok) {
-        return NextResponse.json(
-          { verified: false, error: 'burn_lookup_failed' },
-          { status: 400 }
-        );
-      }
-      const data = await res.json();
-      const items = data?.items || [];
-      const burned = items
-        .filter((t: any) => t.to?.hash?.toLowerCase() === '0x0000000000000000000000000000000000000000')
-        .reduce((sum: number, t: any) => sum + Number(t.total?.value || 0), 0);
-
-      const formattedBurn = burned / 1e18;
-      verified = formattedBurn >= minBalance;
-      proof = { walletAddress, burned: formattedBurn.toFixed(4), minBalance };
-    }
   }
 
   if (!verified) {

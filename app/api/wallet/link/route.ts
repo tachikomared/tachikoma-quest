@@ -1,4 +1,3 @@
-export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import { verifyMessage } from 'viem';
 import { z } from 'zod';
@@ -56,9 +55,8 @@ export async function POST(req: Request) {
     );
   }
 
-  // Verify message contains user identifier (FID for Farcaster users, userId for guests)
-  const isGuest = current.fid === 0;
-  if (!isGuest && !message.includes(String(current.fid))) {
+  // Verify message contains FID
+  if (!message.includes(String(current.fid))) {
     return NextResponse.json(
       { ok: false, error: 'Invalid message - FID mismatch' },
       { status: 400 }
@@ -66,9 +64,9 @@ export async function POST(req: Request) {
   }
 
   // Get user ID
-  const userRows = isGuest
-    ? await sql`SELECT id FROM users WHERE id = ${current.id} LIMIT 1`
-    : await sql`SELECT id FROM users WHERE fc_fid = ${current.fid!} LIMIT 1`;
+  const userRows = await sql`
+    SELECT id FROM users WHERE fc_fid = ${current.fid!} LIMIT 1
+  `;
 
   if (!userRows.length) {
     return NextResponse.json(
@@ -89,14 +87,10 @@ export async function POST(req: Request) {
       verified = true
   `;
 
-  // Update user's primary wallet (best effort)
-  try {
-    await sql`
-      UPDATE users SET wallet_address = ${addressLower} WHERE id = ${userId}
-    `;
-  } catch (e) {
-    console.warn('[wallet] users.wallet_address update skipped:', e);
-  }
+  // Update user's primary wallet
+  await sql`
+    UPDATE users SET wallet_address = ${addressLower} WHERE id = ${userId}
+  `;
 
   // Award quest points if wallet-link quest exists
   const walletQuest = getQuest('wallet-link');

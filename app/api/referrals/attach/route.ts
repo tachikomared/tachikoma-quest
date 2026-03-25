@@ -1,4 +1,3 @@
-export const dynamic = "force-dynamic";
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { sql } from '@/lib/db';
@@ -31,19 +30,12 @@ export async function POST(req: Request) {
   const { code } = parseResult.data;
 
   // Get current user
-  const userRows = current.fid === 0
-    ? await sql`
-        SELECT id, referral_code, referred_by_code
-        FROM users
-        WHERE id = ${current.id}
-        LIMIT 1
-      `
-    : await sql`
-        SELECT id, referral_code, referred_by_code
-        FROM users
-        WHERE fc_fid = ${current.fid!}
-        LIMIT 1
-      `;
+  const userRows = await sql`
+    SELECT id, referral_code, referred_by_code
+    FROM users
+    WHERE fc_fid = ${current.fid!}
+    LIMIT 1
+  `;
 
   if (!userRows.length) {
     return NextResponse.json(

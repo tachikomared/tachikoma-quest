@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   await sql`UPDATE auth_nonces SET used = TRUE WHERE nonce_hash = ${hashedNonce}`;
 
   // Issue session
-  await setSession(0, null, walletAddress, 'base_web'); // fid 0 for wallet users
+  await setSession(0, null, walletAddress); // fid 0 for wallet users
 
   return NextResponse.json({ success: true });
 }
