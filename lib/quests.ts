@@ -1,4 +1,4 @@
-export type QuestPlatform = 'farcaster' | 'x' | 'wallet' | 'referral';
+export type QuestPlatform = 'farcaster' | 'x' | 'wallet' | 'referral' | 'daily';
 export type QuestAction =
   | 'follow_user'
   | 'recast_cast'
@@ -6,7 +6,8 @@ export type QuestAction =
   | 'quote_cast'
   | 'cast_in_channel'
   | 'link_wallet'
-  | 'open_external';
+  | 'open_external'
+  | 'daily_checkin';
 
 export type QuestVerification =
   | 'fc_follow_user'
@@ -17,7 +18,8 @@ export type QuestVerification =
   | 'manual_open'
   | 'wallet_balance'
   | 'wallet_burn'
-  | 'referral_qualified';
+  | 'referral_qualified'
+  | 'daily_checkin';
 
 export type QuestStatus = 'idle' | 'opened' | 'verifying' | 'verified' | 'failed';
 
@@ -25,9 +27,11 @@ export type QuestTarget = {
   targetFid?: number;
   castHash?: string;
   castUrl?: string;
+  profileUrl?: string;
   url?: string;
   channelId?: string;
   defaultQuoteText?: string;
+  min?: number;
 };
 
 export type QuestDef = {
@@ -63,33 +67,20 @@ export type User = {
   createdAt: string;
 };
 
-export type LeaderboardEntry = {
-  rank: number;
-  fid: number;
-  username: string | null;
-  displayName: string | null;
-  pfpUrl: string | null;
-  points: number;
-};
-
-export type Referral = {
-  id: string;
-  username: string | null;
-  displayName: string | null;
-  pfpUrl: string | null;
-  qualified: boolean;
-  createdAt: string;
-};
-
-export type ReferralReward = {
-  milestone: number;
-  label: string;
-  xp: number;
-  tachi?: number;
-  claimed: boolean;
-};
-
 export const QUESTS: QuestDef[] = [
+  {
+    id: 'daily-checkin',
+    title: 'Daily Check-In',
+    description: 'Claim your daily XP — once every 24 hours',
+    platform: 'daily',
+    action: 'daily_checkin',
+    verification: 'daily_checkin',
+    points: 50,
+    repeatable: true,
+    enabled: true,
+    target: {},
+    icon: '📅',
+  },
   {
     id: 'fc-follow-smolekoma',
     title: 'Follow @smolekoma',
@@ -98,10 +89,9 @@ export const QUESTS: QuestDef[] = [
     action: 'follow_user',
     verification: 'fc_follow_user',
     points: 150,
-    tachiReward: 0,
     repeatable: false,
     enabled: true,
-    target: { targetFid: 2656205 },
+    target: { targetFid: 2656205, profileUrl: 'https://warpcast.com/smolekoma' },
     icon: '👤',
   },
   {
@@ -112,10 +102,9 @@ export const QUESTS: QuestDef[] = [
     action: 'recast_cast',
     verification: 'fc_cast_viewer_context',
     points: 250,
-    tachiReward: 0,
     repeatable: false,
     enabled: true,
-    target: { 
+    target: {
       castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a',
       castUrl: 'https://warpcast.com/smolekoma/0x400e79ed'
     },
@@ -129,10 +118,9 @@ export const QUESTS: QuestDef[] = [
     action: 'like_cast',
     verification: 'fc_cast_viewer_context',
     points: 100,
-    tachiReward: 0,
     repeatable: false,
     enabled: true,
-    target: { 
+    target: {
       castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a',
       castUrl: 'https://warpcast.com/smolekoma/0x400e79ed'
     },
@@ -146,39 +134,140 @@ export const QUESTS: QuestDef[] = [
     action: 'link_wallet',
     verification: 'wallet_signature',
     points: 500,
-    tachiReward: 100,
     repeatable: false,
     enabled: true,
     target: {},
     icon: '💎',
   },
   {
+    id: 'hodl-100',
+    title: 'HODL 100 $TACHI',
+    description: 'Hold 100+ $TACHI in your linked wallet',
+    platform: 'wallet',
+    action: 'link_wallet',
+    verification: 'wallet_balance',
+    points: 250,
+    repeatable: false,
+    enabled: true,
+    target: { min: 100 },
+    icon: '🪙',
+  },
+  {
+    id: 'hodl-1k',
+    title: 'HODL 1,000 $TACHI',
+    description: 'Hold 1,000+ $TACHI in your linked wallet',
+    platform: 'wallet',
+    action: 'link_wallet',
+    verification: 'wallet_balance',
+    points: 750,
+    repeatable: false,
+    enabled: true,
+    target: { min: 1000 },
+    icon: '🪙',
+  },
+  {
+    id: 'hodl-10k',
+    title: 'HODL 10,000 $TACHI',
+    description: 'Hold 10,000+ $TACHI in your linked wallet',
+    platform: 'wallet',
+    action: 'link_wallet',
+    verification: 'wallet_balance',
+    points: 1500,
+    repeatable: false,
+    enabled: true,
+    target: { min: 10000 },
+    icon: '🪙',
+  },
+  {
+    id: 'hodl-100k',
+    title: 'HODL 100,000 $TACHI',
+    description: 'Hold 100,000+ $TACHI in your linked wallet',
+    platform: 'wallet',
+    action: 'link_wallet',
+    verification: 'wallet_balance',
+    points: 3000,
+    repeatable: false,
+    enabled: true,
+    target: { min: 100000 },
+    icon: '🪙',
+  },
+  {
+    id: 'hodl-1m',
+    title: 'HODL 1,000,000 $TACHI',
+    description: 'Hold 1M+ $TACHI in your linked wallet',
+    platform: 'wallet',
+    action: 'link_wallet',
+    verification: 'wallet_balance',
+    points: 10000,
+    repeatable: false,
+    enabled: true,
+    target: { min: 1000000 },
+    icon: '🪙',
+  },
+  {
+    id: 'hodl-10m',
+    title: 'HODL 10,000,000 $TACHI',
+    description: 'Hold 10M+ $TACHI in your linked wallet',
+    platform: 'wallet',
+    action: 'link_wallet',
+    verification: 'wallet_balance',
+    points: 25000,
+    repeatable: false,
+    enabled: true,
+    target: { min: 10000000 },
+    icon: '🪙',
+  },
+  {
+    id: 'hodl-100m',
+    title: 'HODL 100,000,000 $TACHI',
+    description: 'Hold 100M+ $TACHI in your linked wallet',
+    platform: 'wallet',
+    action: 'link_wallet',
+    verification: 'wallet_balance',
+    points: 50000,
+    repeatable: false,
+    enabled: true,
+    target: { min: 100000000 },
+    icon: '🪙',
+  },
+  {
+    id: 'hodl-1b',
+    title: 'HODL 1B $TACHI',
+    description: 'Hold 1B+ $TACHI in your linked wallet',
+    platform: 'wallet',
+    action: 'link_wallet',
+    verification: 'wallet_balance',
+    points: 100000,
+    repeatable: false,
+    enabled: true,
+    target: { min: 1000000000 },
+    icon: '🪙',
+  },
+  {
+    id: 'hodl-10b',
+    title: 'HODL 10B $TACHI',
+    description: 'Hold 10B+ $TACHI in your linked wallet',
+    platform: 'wallet',
+    action: 'link_wallet',
+    verification: 'wallet_balance',
+    points: 250000,
+    repeatable: false,
+    enabled: true,
+    target: { min: 10000000000 },
+    icon: '🪙',
+  },
+  {
     id: 'x-follow',
     title: 'Follow on X',
-    description: 'Follow @smolekoma on X (formerly Twitter)',
+    description: 'Follow @smolekoma on X',
     platform: 'x',
     action: 'open_external',
     verification: 'manual_open',
     points: 0,
-    tachiReward: 0,
     repeatable: false,
     enabled: true,
     target: { url: 'https://x.com/smolekoma' },
     icon: '🐦',
-  },
-  {
-    id: 'x-like-tweet',
-    title: 'Like Announcement',
-    description: 'Like the TACHI Quest announcement tweet',
-    platform: 'x',
-    action: 'open_external',
-    verification: 'manual_open',
-    points: 0,
-    tachiReward: 0,
-    repeatable: false,
-    enabled: true,
-    target: { url: 'https://x.com/smolekoma/status/2029672279416721648' },
-    icon: '💙',
   },
 ];
 
@@ -187,5 +276,5 @@ export function getQuest(id: string): QuestDef | undefined {
 }
 
 export function getQuests(): QuestDef[] {
-  return QUESTS.filter((q) => q.enabled).sort((a, b) => (a.points - b.points));
+  return QUESTS.filter((q) => q.enabled);
 }

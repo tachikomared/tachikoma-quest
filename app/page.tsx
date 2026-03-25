@@ -16,7 +16,7 @@ const formatNumber = (value: number | string, maxFractionDigits = 0) => {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: maxFractionDigits, useGrouping: false }).format(num);
 };
 
-type Tab = 'missions' | 'staking' | 'casino' | 'warroom' | 'enlist' | 'pilot';
+type Tab = 'missions' | 'staking' | 'minigames' | 'warroom' | 'enlist' | 'pilot';
 type MissionStatus = 'pending' | 'active' | 'completed' | 'failed';
 
 const TABS: { id: Tab; label: string; icon: string; note?: string }[] = [
@@ -25,7 +25,7 @@ const TABS: { id: Tab; label: string; icon: string; note?: string }[] = [
   { id: 'enlist', label: 'ENLIST', icon: '🔗' },
   { id: 'pilot', label: 'PILOT', icon: '🦀' },
   { id: 'staking', label: 'STAKING', icon: '🪙', note: 'IN DEV' },
-  { id: 'casino', label: 'CASINO', icon: '🎰', note: 'IN DEV' },
+  { id: 'minigames', label: 'MINIGAMES', icon: '🎮', note: 'IN DEV' },
 ];
 
 export default function HomePage() {
@@ -179,9 +179,10 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean; }) {
 
   // Hardcoded missions — single source of truth until DB is reliable
   const defaultMissions = [
+    { id: 'daily-checkin', title: 'Daily Check-In', description: 'Claim your daily XP — once every 24 hours', points: 50, icon: '📅', platform: 'daily', verification: 'daily_checkin', action: 'daily_checkin', target: {} },
     { id: 'fc-follow-smolekoma', title: 'Follow @smolekoma', description: 'Follow @smolekoma on Farcaster', points: 150, icon: '👤', platform: 'farcaster', verification: 'fc_follow_user', action: 'follow_user', target: { targetFid: 2656205, profileUrl: 'https://farcaster.xyz/smolekoma' } },
     { id: 'fc-recast-launch', title: 'Recast Launch Cast', description: 'Recast the official TACHI Quest launch announcement', points: 250, icon: '🔄', platform: 'farcaster', verification: 'fc_cast_viewer_context', action: 'open_external', target: { castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a', castUrl: 'https://warpcast.com/smolekoma/0x400e79ed' } },
-    { id: 'wallet-link', title: 'Link Base Wallet', description: 'Link a Base wallet for airdrop eligibility', points: 200, icon: '🔗', platform: 'wallet', verification: 'wallet_signature' },
+    { id: 'wallet-link', title: 'Link Base Wallet', description: 'Link a Base wallet for airdrop eligibility', points: 500, icon: '🔗', platform: 'wallet', verification: 'wallet_signature' },
     { id: 'hodl-100', title: 'HODL 100 $TACHI', description: 'Hold 100+ $TACHI in your linked wallet', points: 250, icon: '🪙', platform: 'wallet', verification: 'wallet_balance', target: { min: 100 } },
     { id: 'hodl-1k', title: 'HODL 1,000 $TACHI', description: 'Hold 1,000+ $TACHI in your linked wallet', points: 750, icon: '🪙', platform: 'wallet', verification: 'wallet_balance', target: { min: 1000 } },
     { id: 'hodl-10k', title: 'HODL 10,000 $TACHI', description: 'Hold 10,000+ $TACHI in your linked wallet', points: 1500, icon: '🪙', platform: 'wallet', verification: 'wallet_balance', target: { min: 10000 } },
@@ -234,20 +235,33 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean; }) {
       await linkWalletForQuest(mission);
       return;
     }
-    if (mission.verification === 'wallet_balance' || mission.verification === 'wallet_burn') {
+
+    // Daily check-in, wallet_balance, wallet_burn — all go straight to verify endpoint
+    if (
+      mission.verification === 'daily_checkin' ||
+      mission.verification === 'wallet_balance' ||
+      mission.verification === 'wallet_burn'
+    ) {
       setStatus(mission.id, 'active');
       try {
         const res = await fetch(`/api/quests/${mission.id}/verify`, { method: 'POST' });
         const data = await res.json();
-        const walletBalance = Number(data?.balance ?? data?.formattedBalance ?? 0);
-        const threshold = Number(mission.target?.min || 0);
-        const verified = mission.verification === 'wallet_burn' ? Boolean(data?.verified) : walletBalance >= threshold;
-        if (verified) {
+        if (data?.verified) {
           setStatus(mission.id, 'completed');
           await refreshAuth();
           await refreshCompletions();
           setReceiptModal({ isOpen: true, quest: mission });
-        } else setStatus(mission.id, 'failed');
+        } else {
+          const errMsg = data?.error === 'cooldown_active'
+            ? `Come back in ${data.hoursRemaining}h`
+            : data?.error === 'no_wallet_linked'
+            ? 'Link a wallet first!'
+            : data?.error === 'insufficient_balance'
+            ? `Need more $TACHI (have ${Number(data.balance || 0).toLocaleString()})`
+            : 'Not completed yet';
+          console.warn('[verify]', errMsg);
+          setStatus(mission.id, 'failed');
+        }
       } catch {
         setStatus(mission.id, 'failed');
       }
@@ -352,6 +366,15 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean; }) {
               </div>
             </div>
             <div className="flex gap-2 mt-4">
+              {mission.verification === 'daily_checkin' && (
+                <button
+                  onClick={() => verifyMission(mission)}
+                  disabled={status === 'active'}
+                  className="mecha-button flex-1 text-xs bg-[#39ff14]/10 border-[#39ff14]"
+                >
+                  {status === 'active' ? '⏳ CLAIMING...' : '📅 CLAIM DAILY XP'}
+                </button>
+              )}
               {mission.platform === 'wallet' && mission.verification === 'wallet_signature' && (
                 !isConnected ? (
                   <button onClick={() => connect({ connector: connectors[0] })} disabled={isConnecting} className="mecha-button flex-1 text-xs bg-[#00f0ff]/10 border-[#00f0ff]">{isConnecting ? '⏳ CONNECT...' : '🔗 CONNECT WALLET'}</button>
@@ -372,9 +395,15 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean; }) {
               )}
 
               {mission.platform === 'wallet' && mission.verification === 'wallet_balance' && (
-                <button disabled={true} className={`mecha-button flex-1 text-xs ${numericBalance >= (mission.target?.min || 0) ? 'bg-[#39ff14]/10 border-[#39ff14] text-[#39ff14]' : 'bg-[#5a5a6a]/10 border-[#5a5a6a] text-[#8a8a9a]'}`}>
-                  {numericBalance >= (mission.target?.min || 0) ? '✅ ACHIEVED' : '🔒 LOCKED'}
-                </button>
+                completedIds.has(mission.id)
+                  ? <button disabled className="mecha-button flex-1 text-xs bg-[#39ff14]/10 border-[#39ff14] text-[#39ff14]">✅ ACCOMPLISHED</button>
+                  : <button
+                      onClick={() => verifyMission(mission)}
+                      disabled={status === 'active'}
+                      className={`mecha-button flex-1 text-xs ${numericBalance >= (mission.target?.min || 0) ? 'bg-[#39ff14]/10 border-[#39ff14]' : 'bg-[#ff1a1a]/20'}`}
+                    >
+                      {status === 'active' ? '⏳ VERIFYING...' : numericBalance >= (mission.target?.min || 0) ? '✓ CLAIM XP' : '✓ VERIFY HODL'}
+                    </button>
               )}
 
               {mission.platform === 'wallet' && mission.verification === 'wallet_burn' && (
@@ -470,7 +499,26 @@ function WarRoomTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
             })}
           </div>
         )}
-        {user && <button onClick={async () => { const rank = holders.findIndex(h => h.username === user.fcUsername) + 1; const holder = holders.find(h => h.username === user.fcUsername); const tier = holder ? getHolderTier(holder.balance, rank) : { label: 'CRAB' }; const shareUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}?tab=warroom`; const text = `<img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /> Check out the $TACHI Holders Leaderboard! Rank #${rank || '???'} ${tier.label} // Holding ${holder?.balance || '0'} $TACHI`; if (isMiniApp && typeof window !== 'undefined' && (window as any).sdk?.actions?.composeCast) { const embedUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}?tab=warroom`; const footer = `\n\n🎮 ${typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app'}`; await (window as any).sdk.actions.composeCast({ text: text + footer, embeds: [embedUrl] }); } else { const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); const encodedText = encodeURIComponent(text); const encodedEmbed = encodeURIComponent(shareUrl); if (isMobile) { const deepLink = `warpcast://compose?text=${encodedText}&embeds[]=${encodedEmbed}`; window.location.href = deepLink; setTimeout(() => { window.open(`https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`, '_blank'); }, 2000); } else { window.open(`https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`, '_blank'); } } }} className="mt-4 mecha-button w-full text-xs bg-[#ff1a1a]/10 border-[#ff1a1a]">📡 BROADCAST LEADERBOARD</button>}
+        {user && <button onClick={async () => {
+          const shareUrl = 'https://tachi-quest.vercel.app';
+          const embedUrl = `${shareUrl}?tab=warroom`;
+          const rank = holders.findIndex(h => h.username === user.fcUsername) + 1;
+          const holder = holders.find(h => h.username === user.fcUsername);
+          const text = `I love AI agents on Base 🦀 $TACHI Quest started — don't miss it!\n\nI'm ranked #${rank || '???'} on the holder leaderboard holding ${holder?.balance || '0'} $TACHI`;
+          if (isMiniApp) {
+            await sdk.actions.composeCast({ text, embeds: [embedUrl] });
+          } else {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            const encodedText = encodeURIComponent(text);
+            const encodedEmbed = encodeURIComponent(embedUrl);
+            if (isMobile) {
+              window.location.href = `warpcast://compose?text=${encodedText}&embeds[]=${encodedEmbed}`;
+              setTimeout(() => window.open(`https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`, '_blank'), 1500);
+            } else {
+              window.open(`https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`, '_blank');
+            }
+          }
+        }} className="mt-4 mecha-button w-full text-xs bg-[#ff1a1a]/10 border-[#ff1a1a]">📡 BROADCAST LEADERBOARD</button>}
       </div>
 
       <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest"><span className="text-lg">📊</span><span>TOP OPERATIVES</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
@@ -528,12 +576,20 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   };
 
   const handleShare = async () => {
-    const shareUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tachi-quest.vercel.app';
-    const text = `<img src="/crab-icon.png" alt="crab" className="inline-block align-middle w-4 h-4 object-contain" /> TACHI-QUEST // JOIN THE CRAB ARMY // Use my access key: ${referralCode} // Complete missions. Earn XP. Stack $TACHI.\n\n🎮 ${shareUrl}`;
+    const shareUrl = 'https://tachi-quest.vercel.app';
+    const text = `I love AI agents on Base 🦀 $TACHI Quest started — don't miss it!\n\nComplete missions. Earn XP. Stack $TACHI.\nUse my access key: ${referralCode}`;
     if (isMiniApp) {
       await sdk.actions.composeCast({ text, embeds: [shareUrl] });
-    } else if (navigator.share) {
-      navigator.share({ title: 'TACHI QUEST', text, url: shareUrl });
+    } else {
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const encodedText = encodeURIComponent(text);
+      const encodedEmbed = encodeURIComponent(shareUrl);
+      if (isMobile) {
+        window.location.href = `warpcast://compose?text=${encodedText}&embeds[]=${encodedEmbed}`;
+        setTimeout(() => window.open(`https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`, '_blank'), 1500);
+      } else {
+        window.open(`https://warpcast.com/~/compose?text=${encodedText}&embeds[]=${encodedEmbed}`, '_blank');
+      }
     }
   };
 

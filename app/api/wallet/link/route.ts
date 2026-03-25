@@ -8,32 +8,22 @@ import { getQuest } from '@/lib/quests';
 const BodySchema = z.object({
   address: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address'),
   message: z.string().min(1, 'Message required'),
-  signature: z.string().regex(/^0x[a-fA-F0-9]{130}$/, 'Invalid signature'),
+  signature: z.string().min(10, 'Invalid signature'),
 });
 
 export async function POST(req: Request) {
   let body;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: 'Invalid JSON body' },
-      { status: 400 }
-    );
+  try { body = await req.json(); } catch {
+    return NextResponse.json({ ok: false, error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  // Validate body
   const parseResult = BodySchema.safeParse(body);
   if (!parseResult.success) {
-    return NextResponse.json(
-      { ok: false, error: parseResult.error.errors[0].message },
-      { status: 400 }
-    );
+    return NextResponse.json({ ok: false, error: parseResult.error.errors[0].message }, { status: 400 });
   }
 
   const { address, message, signature } = parseResult.data;
 
-  // Verify current user
   const current = await requireCurrentUser();
 
   // Verify signature
@@ -49,36 +39,22 @@ export async function POST(req: Request) {
   }
 
   if (!valid) {
-    return NextResponse.json(
-      { ok: false, error: 'Invalid signature' },
-      { status: 400 }
-    );
+    return NextResponse.json({ ok: false, error: 'Invalid signature' }, { status: 400 });
   }
 
-  // Verify message contains FID
-  if (!message.includes(String(current.fid))) {
-    return NextResponse.json(
-      { ok: false, error: 'Invalid message - FID mismatch' },
-      { status: 400 }
-    );
+  // Resolve userId — works for Farcaster (fid>0) and wallet/guest (fid=0)
+  let userId: string;
+  if (current.fid && current.fid > 0) {
+    const userRows = await sql`SELECT id FROM users WHERE fc_fid = ${current.fid} LIMIT 1`;
+    if (!userRows.length) return NextResponse.json({ ok: false, error: 'User not found' }, { status: 401 });
+    userId = userRows[0].id;
+  } else {
+    userId = current.id;
   }
 
-  // Get user ID
-  const userRows = await sql`
-    SELECT id FROM users WHERE fc_fid = ${current.fid!} LIMIT 1
-  `;
-
-  if (!userRows.length) {
-    return NextResponse.json(
-      { ok: false, error: 'User not found' },
-      { status: 401 }
-    );
-  }
-
-  const userId = userRows[0].id;
   const addressLower = address.toLowerCase();
 
-  // Insert/update wallet
+  // Upsert wallet
   await sql`
     INSERT INTO wallets (user_id, address, chain, verified)
     VALUES (${userId}, ${addressLower}, 'base', true)
@@ -87,30 +63,27 @@ export async function POST(req: Request) {
       verified = true
   `;
 
-  // Update user's primary wallet
-  await sql`
-    UPDATE users SET wallet_address = ${addressLower} WHERE id = ${userId}
-  `;
+  // Update user's primary wallet address
+  await sql`UPDATE users SET wallet_address = ${addressLower} WHERE id = ${userId}`;
 
-  // Award quest points if wallet-link quest exists
+  // Award wallet-link quest XP (only once)
   const walletQuest = getQuest('wallet-link');
   if (walletQuest) {
-    await sql`
-      INSERT INTO quest_claims (user_id, quest_id, status, proof, points_awarded)
-      VALUES (
-        ${userId},
-        'wallet-link',
-        'verified',
-        ${JSON.stringify({ address: addressLower, signature })}::jsonb,
-        ${walletQuest.points}
-      )
-      ON CONFLICT (user_id, quest_id) DO NOTHING
-    `;
+    const alreadyAwarded = await sql`SELECT 1 FROM quest_claims WHERE user_id = ${userId} AND quest_id = 'wallet-link' LIMIT 1`;
+    if (!alreadyAwarded.length) {
+      await sql`
+        INSERT INTO quest_claims (user_id, quest_id, status, proof, points_awarded)
+        VALUES (${userId}, 'wallet-link', 'verified', ${JSON.stringify({ address: addressLower })}::jsonb, ${walletQuest.points})
+        ON CONFLICT (user_id, quest_id) DO NOTHING
+      `;
+      await sql`UPDATE users SET points = COALESCE(points, 0) + ${walletQuest.points} WHERE id = ${userId}`;
+    }
   }
 
   return NextResponse.json({
     ok: true,
     questId: 'wallet-link',
     pointsAwarded: walletQuest?.points ?? 0,
+    walletAddress: addressLower,
   });
 }
