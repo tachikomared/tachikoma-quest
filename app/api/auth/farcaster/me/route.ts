@@ -6,10 +6,14 @@ import { fetchUserWithScore, type NeynarUser } from '@/lib/neynar';
 import { signSession, getFullUser, setSession } from '@/lib/auth';
 
 const quickAuth = createClient();
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-
 function getRequestHost(req: Request): string {
-  return new URL(APP_URL).host;
+  // Use the actual request host — Quick Auth JWT domain must match exactly
+  const forwarded = req.headers.get('x-forwarded-host');
+  const host = req.headers.get('host');
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  // Prefer forwarded host (Vercel sets this), then host header, then env var
+  const domain = forwarded || host || (appUrl ? new URL(appUrl).host : 'tachi-quest.vercel.app');
+  return domain.split(',')[0].trim(); // handle multiple forwarded hosts
 }
 
 async function ensureUser(fid: number, neynarUser: NeynarUser | null): Promise<string> {
@@ -99,14 +103,30 @@ async function handleQuickAuth(token: string, req: Request) {
   const domain = getRequestHost(req);
   console.log('[auth] Verifying JWT for domain:', domain);
 
-  let payload;
-  try {
-    payload = await quickAuth.verifyJwt({ token, domain });
-    console.log('[auth] JWT verified, payload:', JSON.stringify(payload));
-  } catch (e: any) {
-    console.error('[auth] JWT verification failed:', e?.message || e);
+  // Domains to try in order
+  const domainsToTry = [
+    domain,
+    'tachi-quest.vercel.app',
+    process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL).host : null,
+  ].filter(Boolean) as string[];
+
+  let payload: any = null;
+  let lastErr: any;
+  for (const d of domainsToTry) {
+    try {
+      payload = await quickAuth.verifyJwt({ token, domain: d });
+      console.log('[auth] JWT verified with domain:', d, JSON.stringify(payload));
+      break;
+    } catch (e: any) {
+      lastErr = e;
+      console.warn('[auth] JWT verify failed for domain:', d, e?.message);
+    }
+  }
+
+  if (!payload) {
+    console.error('[auth] JWT verification failed all domains:', lastErr?.message || lastErr);
     return NextResponse.json(
-      { user: null, error: 'jwt_verification_failed', details: e?.message },
+      { user: null, error: 'jwt_verification_failed', details: lastErr?.message },
       { status: 401 }
     );
   }
