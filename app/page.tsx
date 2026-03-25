@@ -181,7 +181,7 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean; }) {
   const defaultMissions = [
     { id: 'daily-checkin', title: 'Daily Check-In', description: 'Claim your daily XP — once every 24 hours', points: 50, icon: '📅', platform: 'daily', verification: 'daily_checkin', action: 'daily_checkin', target: {} },
     { id: 'fc-follow-smolekoma', title: 'Follow @smolekoma', description: 'Follow @smolekoma on Farcaster', points: 150, icon: '👤', platform: 'farcaster', verification: 'fc_follow_user', action: 'follow_user', target: { targetFid: 2656205, profileUrl: 'https://farcaster.xyz/smolekoma' } },
-    { id: 'fc-recast-launch', title: 'Recast Launch Cast', description: 'Recast the official TACHI Quest launch announcement', points: 250, icon: '🔄', platform: 'farcaster', verification: 'fc_cast_viewer_context', action: 'open_external', target: { castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a', castUrl: 'https://warpcast.com/smolekoma/0x400e79ed' } },
+    { id: 'fc-recast-launch', title: 'Recast Launch Cast', description: 'Recast the official TACHI Quest launch announcement', points: 250, icon: '🔄', platform: 'farcaster', verification: 'fc_cast_viewer_context', action: 'open_external', target: { castHash: '0xa74dd319', castUrl: 'https://farcaster.xyz/smolekoma/0xa74dd319' } },
     { id: 'wallet-link', title: 'Link Base Wallet', description: 'Link a Base wallet for airdrop eligibility', points: 500, icon: '🔗', platform: 'wallet', verification: 'wallet_signature' },
     { id: 'hodl-100', title: 'HODL 100 $TACHI', description: 'Hold 100+ $TACHI in your linked wallet', points: 250, icon: '🪙', platform: 'wallet', verification: 'wallet_balance', target: { min: 100 } },
     { id: 'hodl-1k', title: 'HODL 1,000 $TACHI', description: 'Hold 1,000+ $TACHI in your linked wallet', points: 750, icon: '🪙', platform: 'wallet', verification: 'wallet_balance', target: { min: 1000 } },
@@ -250,7 +250,11 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean; }) {
           setStatus(mission.id, 'completed');
           await refreshAuth();
           await refreshCompletions();
-          setReceiptModal({ isOpen: true, quest: mission });
+          const questWithBonus = { ...mission, points: data.pointsAwarded ?? mission.points };
+          if (data.proof?.multiplier > 1) {
+            questWithBonus.title = `${mission.title} (${data.proof.multiplier}x STREAK!)`;
+          }
+          setReceiptModal({ isOpen: true, quest: questWithBonus });
         } else {
           const errMsg = data?.error === 'cooldown_active'
             ? `Come back in ${data.hoursRemaining}h`
@@ -258,6 +262,8 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean; }) {
             ? 'Link a wallet first!'
             : data?.error === 'insufficient_balance'
             ? `Need more $TACHI (have ${Number(data.balance || 0).toLocaleString()})`
+            : data?.error === 'farcaster_required'
+            ? 'Farcaster login required'
             : 'Not completed yet';
           console.warn('[verify]', errMsg);
           setStatus(mission.id, 'failed');
@@ -303,7 +309,7 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean; }) {
     if (!user || !address || !isConnected) return;
     setStatus(mission.id, 'active');
     try {
-      const message = `Link wallet to TACHI Quest: ${user.fcFid}`;
+      const message = `TACHI Quest wallet link\nAddress: ${address}\nTimestamp: ${Date.now()}`;
       const signature = await signMessageAsync({ message });
       const res = await fetch('/api/wallet/link', {
         method: 'POST',
@@ -316,7 +322,10 @@ function MissionsTab({ user, isMiniApp }: { user: any; isMiniApp: boolean; }) {
         await refreshAuth();
         await refreshCompletions();
         setReceiptModal({ isOpen: true, quest: mission });
-      } else setStatus(mission.id, 'failed');
+      } else {
+        console.error('[wallet] Link error:', data.error);
+        setStatus(mission.id, 'failed');
+      }
     } catch (e) {
       console.error('[wallet] Link failed:', e);
       setStatus(mission.id, 'failed');
@@ -542,6 +551,8 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
   const [linkCopied, setLinkCopied] = useState(false);
   const [stats, setStats] = useState({ enlisted: 0, active: 0, xpEarned: 0, recruits: [] as any[] });
   const [statsLoading, setStatsLoading] = useState(false);
+  const [refLeaderboard, setRefLeaderboard] = useState<any[]>([]);
+  const [refLbLoading, setRefLbLoading] = useState(false);
   const referralCode = user?.referralCode || 'NO-CODE';
   const referralLink = `${typeof window !== 'undefined' ? window.location.origin : ''}?ref=${referralCode}`;
   const remainingInvites = Math.max(0, (user?.inviteLimit ?? 5) - (user?.invitesUsed ?? 0));
@@ -561,6 +572,14 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
       })
       .catch(() => null)
       .finally(() => setStatsLoading(false));
+
+    // Load referral leaderboard
+    setRefLbLoading(true);
+    fetch('/api/referrals/leaderboard')
+      .then(r => r.json())
+      .then(d => setRefLeaderboard(d.leaderboard || []))
+      .catch(() => null)
+      .finally(() => setRefLbLoading(false));
   }, [user?.id]);
 
   const handleCopyCode = () => {
@@ -618,6 +637,26 @@ function EnlistTab({ user, isMiniApp }: { user: any; isMiniApp: boolean }) {
       </div>
       <div className="flex items-center gap-2 text-[#ff1a1a] font-black text-sm tracking-widest"><span className="text-lg">👥</span><span>NEW RECRUITS</span><div className="flex-1 h-px bg-[#ff1a1a]/30" /></div>
       {stats.recruits.length === 0 ? <div className="mission-card text-center text-xs text-[#5a5a6a] font-mono">No recruits yet. Share your access key to enlist operatives.</div> : <div className="bg-[#0a0a0f] border border-[#1a1a24] rounded-lg overflow-hidden">{stats.recruits.map((r, i) => (<div key={r.id} className={`flex items-center gap-3 p-3 ${i !== 0 ? 'border-t border-[#1a1a24]' : ''}`}><div className="w-8 h-8 rounded bg-[#1a1a24] flex items-center justify-center text-sm">{r.fc_username ? r.fc_username[0]?.toUpperCase() : '👤'}</div><div className="flex-1"><div className="text-sm font-bold">{r.fc_username ? `@${r.fc_username}` : 'Guest Pilot'}</div><div className="text-[10px] text-[#5a5a6a] font-mono">{r.fc_fid ? `FID ${r.fc_fid}` : 'WALLET MODE'}</div></div><div className="text-[10px] text-[#5a5a6a] font-mono">{new Date(r.created_at).toLocaleDateString()}</div></div>))}</div>}
+
+      {/* REFERRAL LEADERBOARD */}
+      <div className="flex items-center gap-2 text-[#ff6b00] font-black text-sm tracking-widest mt-2"><span className="text-lg">🏆</span><span>TOP RECRUITERS</span><div className="flex-1 h-px bg-[#ff6b00]/30" /></div>
+      {refLbLoading ? <div className="mission-card text-center text-xs text-[#5a5a6a] font-mono">LOADING...</div> : refLeaderboard.length === 0 ? <div className="mission-card text-center text-xs text-[#5a5a6a] font-mono">No referrals yet — be the first to recruit!</div> : (
+        <div className="bg-[#0a0a0f] border border-[#1a1a24] rounded-lg overflow-hidden">
+          {refLeaderboard.slice(0, 20).map((r, i) => (
+            <div key={r.referral_code} className={`flex items-center gap-3 p-3 ${i !== 0 ? 'border-t border-[#1a1a24]' : ''}`}>
+              <div className={`w-6 text-center font-black text-xs ${i === 0 ? 'text-[#ff6b00]' : i === 1 ? 'text-[#8a8a9a]' : i === 2 ? 'text-[#ff6b00]/60' : 'text-[#5a5a6a]'}`}>#{i + 1}</div>
+              <div className="w-8 h-8 rounded bg-[#1a1a24] flex items-center justify-center text-sm overflow-hidden">
+                {r.fc_pfp_url ? <img src={r.fc_pfp_url} className="w-full h-full object-cover" alt="" /> : <span>{r.fc_username?.[0]?.toUpperCase() || '👤'}</span>}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold truncate">{r.fc_username ? `@${r.fc_username}` : 'Guest'}</div>
+                <div className="text-[9px] text-[#5a5a6a] font-mono">{r.xp_earned} XP earned</div>
+              </div>
+              <div className="text-right"><div className="text-[#ff6b00] font-black text-sm">{r.referral_count}</div><div className="text-[9px] text-[#5a5a6a] font-mono">RECRUITS</div></div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -669,16 +708,16 @@ function PilotTab({ user }: { user: any }) {
   };
 
   const getHodlTier = (balance: number) => {
-    if (balance >= 10000000000) return { label: '10B HODL LVL', color: 'text-[#00f0ff] border-[#00f0ff] bg-[#00f0ff]/10' };
-    if (balance >= 1000000000) return { label: '1B HODL LVL', color: 'text-[#39ff14] border-[#39ff14] bg-[#39ff14]/10' };
-    if (balance >= 100000000) return { label: '100M HODL LVL', color: 'text-[#ff6b00] border-[#ff6b00] bg-[#ff6b00]/10' };
-    if (balance >= 10000000) return { label: '10M HODL LVL', color: 'text-[#ff1a1a] border-[#ff1a1a] bg-[#ff1a1a]/10' };
-    if (balance >= 1000000) return { label: '1M HODL LVL', color: 'text-[#00f0ff] border-[#00f0ff] bg-[#00f0ff]/10' };
-    if (balance >= 100000) return { label: '100K HODL LVL', color: 'text-[#39ff14] border-[#39ff14] bg-[#39ff14]/10' };
-    if (balance >= 10000) return { label: '10K HODL LVL', color: 'text-[#ff6b00] border-[#ff6b00] bg-[#ff6b00]/10' };
-    if (balance >= 1000) return { label: '1K HODL LVL', color: 'text-[#ff1a1a] border-[#ff1a1a] bg-[#ff1a1a]/10' };
-    if (balance >= 100) return { label: '100 HODL LVL', color: 'text-[#00f0ff] border-[#00f0ff] bg-[#00f0ff]/10' };
-    return { label: 'NO HODL', color: 'text-[#5a5a6a] border-[#5a5a6a] bg-[#5a5a6a]/10' };
+    if (balance >= 10000000000) return { label: '🦀 CRAB OVERLORD', color: 'text-[#00f0ff] border-[#00f0ff] bg-[#00f0ff]/10' };
+    if (balance >= 1000000000) return { label: '🦀 MEGA CRAB', color: 'text-[#39ff14] border-[#39ff14] bg-[#39ff14]/10' };
+    if (balance >= 100000000) return { label: '🦀 ULTRA CRAB', color: 'text-[#ff6b00] border-[#ff6b00] bg-[#ff6b00]/10' };
+    if (balance >= 10000000) return { label: '🦀 BASED CRAB', color: 'text-[#ff1a1a] border-[#ff1a1a] bg-[#ff1a1a]/10' };
+    if (balance >= 1000000) return { label: '🦀 CYBER CRAB', color: 'text-[#00f0ff] border-[#00f0ff] bg-[#00f0ff]/10' };
+    if (balance >= 100000) return { label: '🦀 MECH CRAB', color: 'text-[#39ff14] border-[#39ff14] bg-[#39ff14]/10' };
+    if (balance >= 10000) return { label: '🦀 TURBO CRAB', color: 'text-[#ff6b00] border-[#ff6b00] bg-[#ff6b00]/10' };
+    if (balance >= 1000) return { label: '🦀 CRAB SOLDIER', color: 'text-[#ff1a1a] border-[#ff1a1a] bg-[#ff1a1a]/10' };
+    if (balance >= 100) return { label: '🦀 BABY CRAB', color: 'text-[#00f0ff] border-[#00f0ff] bg-[#00f0ff]/10' };
+    return { label: 'PROTOCRAB', color: 'text-[#5a5a6a] border-[#5a5a6a] bg-[#5a5a6a]/10' };
   };
 
   const hodlTier = getHodlTier(numericBalance);

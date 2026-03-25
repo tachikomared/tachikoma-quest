@@ -105,8 +105,8 @@ export const QUESTS: QuestDef[] = [
     repeatable: false,
     enabled: true,
     target: {
-      castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a',
-      castUrl: 'https://warpcast.com/smolekoma/0x400e79ed'
+      castHash: '0xa74dd319',
+      castUrl: 'https://farcaster.xyz/smolekoma/0xa74dd319'
     },
     icon: '🔄',
   },
@@ -121,8 +121,8 @@ export const QUESTS: QuestDef[] = [
     repeatable: false,
     enabled: true,
     target: {
-      castHash: '0x400e79ed5f99b2c9ac35c880fddf80672c3ea37a',
-      castUrl: 'https://warpcast.com/smolekoma/0x400e79ed'
+      castHash: '0xa74dd319',
+      castUrl: 'https://farcaster.xyz/smolekoma/0xa74dd319'
     },
     icon: '❤️',
   },

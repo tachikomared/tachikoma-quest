@@ -116,40 +116,53 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
 
   // Daily check-in (once per 24h) — stored as 'daily-checkin-YYYY-MM-DD'
   if (quest.verification === 'daily_checkin') {
-    const lastClaim = await sql`
+    const recentClaims = await sql`
       SELECT created_at FROM quest_claims
       WHERE user_id = ${userId} AND quest_id LIKE 'daily-checkin-%'
-      ORDER BY created_at DESC LIMIT 1
+      ORDER BY created_at DESC LIMIT 10
     `;
-    if (lastClaim.length) {
-      const lastTime = new Date(lastClaim[0].created_at).getTime();
+    if (recentClaims.length) {
+      const lastTime = new Date(recentClaims[0].created_at).getTime();
       const hoursSince = (Date.now() - lastTime) / 3600000;
       if (hoursSince < 24) {
         return NextResponse.json({ verified: false, error: 'cooldown_active', hoursRemaining: (24 - hoursSince).toFixed(1) }, { status: 409 });
       }
     }
-    // Use today's date as unique quest_id so UNIQUE constraint works per-day
+    // Compute streak — consecutive days
+    let streak = 1;
+    for (let i = 0; i < recentClaims.length - 1; i++) {
+      const a = new Date(recentClaims[i].created_at).getTime();
+      const b = new Date(recentClaims[i + 1].created_at).getTime();
+      const diffHours = (a - b) / 3600000;
+      if (diffHours <= 48) { streak++; } else { break; }
+    }
+    // Streak multiplier: day 3+ = 2x, day 7+ = 3x
+    let multiplier = 1;
+    if (streak >= 7) multiplier = 3;
+    else if (streak >= 3) multiplier = 2;
+
     const today = new Date().toISOString().slice(0, 10);
     (quest as any)._dailyQuestId = `daily-checkin-${today}`;
+    (quest as any)._earnedPoints = quest.points * multiplier;
     verified = true;
-    proof = { checkedInAt: new Date().toISOString() };
+    proof = { checkedInAt: new Date().toISOString(), streak, multiplier, basePoints: quest.points, earnedPoints: quest.points * multiplier };
   }
 
   if (!verified) {
     return NextResponse.json({ verified: false, error: 'not_completed' }, { status: 409 });
   }
 
-  // Award points
+  // Award points (use streak-multiplied amount for daily checkin)
   const claimQuestId = (quest as any)._dailyQuestId || quest.id;
+  const earnedPoints = (quest as any)._earnedPoints ?? quest.points;
   await sql`
     INSERT INTO quest_claims (user_id, quest_id, status, proof, points_awarded)
-    VALUES (${userId}, ${claimQuestId}, 'verified', ${JSON.stringify(proof)}::jsonb, ${quest.points})
+    VALUES (${userId}, ${claimQuestId}, 'verified', ${JSON.stringify(proof)}::jsonb, ${earnedPoints})
     ON CONFLICT (user_id, quest_id) DO NOTHING
   `;
-  // Update user points total
-  await sql`UPDATE users SET points = COALESCE(points, 0) + ${quest.points} WHERE id = ${userId}`;
+  await sql`UPDATE users SET points = COALESCE(points, 0) + ${earnedPoints} WHERE id = ${userId}`;
 
   await awardReferralIfQualified(userId);
 
-  return NextResponse.json({ verified: true, questId: quest.id, pointsAwarded: quest.points });
+  return NextResponse.json({ verified: true, questId: quest.id, pointsAwarded: earnedPoints, proof });
 }
